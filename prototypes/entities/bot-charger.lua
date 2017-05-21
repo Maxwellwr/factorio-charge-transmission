@@ -2,6 +2,7 @@ local Colours = require "libs/colour"
 
 local icon = {{icon = "__base__/graphics/icons/beacon.png", tint = Colours.fromHex("#00bbee")}}
 
+-- TODO: Convert to a LuaLogisticCell holder
 local entity_base = {
   type = "simple-entity",
   name = "charge-transmission-bot-charger-base",
@@ -56,7 +57,7 @@ local entity = {
   dying_explosion = "medium-explosion",
   collision_box = {{-0.9, -0.9}, {0.9, 0.9}},
   selection_box = {{-1, -1}, {1, 1}},
-  enable_gui = true,
+  enable_gui = false,
   -- module_specification = {
   --   module_slots = 2,
   --   module_info_icon_shift = {0, 0.5},
@@ -87,11 +88,11 @@ local entity = {
   },
   energy_source = {
     type = "electric",
-    buffer_capacity = "10GJ",
+    buffer_capacity = "50MJ",
     usage_priority = "secondary-input",
-    input_flow_limit = "1GW",
+    input_flow_limit = "20MW",
     output_flow_limit = "0W",
-    drain = "5kW",
+    drain = "200kW",
   },
   energy_production = "0W",
   energy_usage = "0W",
@@ -132,7 +133,7 @@ local recipe = {
   {
     {"beacon", 1},
     {"radar", 1},
-    {"battery", 10},
+    {"battery", 20},
     {"processing-unit", 20},
     {"copper-cable", 20}
   },

@@ -44,7 +44,6 @@ local function registerBotCharger(charger)
     local savedata = {charger = charger, base = base}
     table.insert(chargers, savedata)
     findRoboport(savedata)
-    log("+"..#chargers)
   end
 end
 
@@ -54,7 +53,6 @@ local function removeBotCharger(charger)
       if savedata.charger.unit_number == charger.unit_number then
         savedata.base.destroy()
         table.remove(chargers, key)
-        log("-"..#chargers)
         return
       end
     end
@@ -67,6 +65,15 @@ Event.register(defines.events.on_robot_built_entity, function(event) registerBot
 Event.register(defines.events.on_player_mined_entity, function(event) removeBotCharger(event.entity) end)
 Event.register(defines.events.on_robot_mined_entity, function(event) removeBotCharger(event.entity) end)
 
+
+-- TODO: Optimize this, make it squeaky clean
+-- * change the architecture so roboports are the grouping element, not the charger so that grouped-together chargers "share the burden"
+--   (also solves the issue of a charger having only so much input current)
+-- * abstract the robot types to a setting which auto-updates to just save the name and max energy
+-- * add the 40 bots at a time system?
+-- ✓ remove the math.maxes, they're slighly heavy and an if could work there
+-- * code check
+-- * add more .valid checks
 script.on_event(defines.events.on_tick, function(event)
   for id=1+event.tick%30,#chargers,30 do
     local data = chargers[id]
@@ -82,28 +89,27 @@ script.on_event(defines.events.on_tick, function(event)
           force = data.charger.force,
           name = bot_type.name
         }
-        cost = cost + (bot_type.max_energy / 4) * #(bots[type])
+        local subcost = bot_type.max_energy * #(bots[type])
+        for j=1,#(bots[type]) do subcost = subcost - bots[type][j].energy  end
+        cost = cost + subcost * 2
       end
-      if cost * 30 > data.charger.energy then
+      if cost > data.charger.energy then
         -- overspending so the machine charges less per robot
-        local fraction = data.charger.energy / (cost * 30)
+        local fraction = data.charger.energy / cost
+        local reverse = 1 - fraction
         log((fraction*100).."% energy usage on "..id)
         for type=1,#bot_types do
           local refill = game.entity_prototypes[bot_types[type]].max_energy * fraction
-          for j=1,#(bots[type]) do
-            bots[type][j].energy = math.max(refill, bots[type][j].energy)
-          end
+          for j=1,#(bots[type]) do bots[type][j].energy = bots[type][j].energy * reverse + refill end
         end
-        data.charger.power_usage = cost * fraction
+        data.charger.power_usage = (cost / 30) * fraction
       else
         -- recharge all bots fully
         for type=1,#bot_types do
           local refill = game.entity_prototypes[bot_types[type]].max_energy
-          for j=1,#(bots[type]) do
-            bots[type][j].energy = refill
-          end
+          for j=1,#(bots[type]) do bots[type][j].energy = refill end
         end
-        data.charger.power_usage = cost
+        data.charger.power_usage = cost / 30
       end
     elseif data.charger.valid and event.tick % 120 then
       data.roboport = nil
