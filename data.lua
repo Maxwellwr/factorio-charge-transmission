@@ -1,1 +1,1 @@
-require "prototypes.entities.beacon"
+require "prototypes.entities.bot-charger"

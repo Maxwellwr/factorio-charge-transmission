@@ -41,3 +41,6 @@ luac.out
 
 # Test-FactorioMod.ps1
 .cache/
+
+# Graphics
+graphics/**/*.svg
