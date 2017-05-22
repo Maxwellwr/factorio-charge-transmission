@@ -11,7 +11,7 @@ local function base_rotations()
       height = 128,
       x=i%6 * 128,
       y=math.floor(i/6) * 128,
-      shift = util.by_pixel(0, 4)
+      shift = util.by_pixel(0, 8)
     }
   end
   table.insert(pictures, {
@@ -30,7 +30,7 @@ local entity_base = {
   flags = {"not-on-map"},
   render_layer = "remnants",
   collision_mask = {},
-  collision_box = {{-0.9, -0.9}, {0.9, 0.9}},
+  collision_box = {{-0.8, -0.8}, {0.8, 0.8}},
   selection_box = {{-1, -1}, {1, 1}},
   drawing_box = {{-2, -2}, {2, 2}},
   selectable_in_game = false,
@@ -48,9 +48,9 @@ local entity = {
   dying_explosion = "medium-explosion",
   collision_box = {{-0.8, -0.8}, {0.8, 0.8}},
   selection_box = {{-1, -1}, {1, 1}},
-  drawing_box = {{-1, -2}, {1, 1}},
-  enable_gui = false,
-  
+  drawing_box = {{-1, -1.5}, {1, 0.5}},
+  enable_gui = true,
+  allow_copy_paste = false,
   animation = {
     layers = {{
       filename = "__ChargeTransmission__/graphics/entities/bot-charger/base.png",
@@ -58,7 +58,7 @@ local entity = {
       height = 64,
       line_length = 8,
       frame_count = 32,
-      shift = util.by_pixel(0, 4),
+      shift = util.by_pixel(0, 8),
       animation_speed = 0.5,
     },{
       filename = "__base__/graphics/entity/beacon/beacon-antenna.png",
@@ -67,7 +67,7 @@ local entity = {
       line_length = 8,
       frame_count = 32,
       -- shift = { -0.03125, -1.71875},
-      shift = util.by_pixel(-1,-55+32-2),
+      shift = util.by_pixel(-1,-55+32+4),
       tint = Colours.fromHex("#00bbee"),
       animation_speed = 0.5
     },{
@@ -76,7 +76,8 @@ local entity = {
       height = 49,
       line_length = 8,
       frame_count = 32,
-      shift = { 3.140625, 0.484375},
+      -- shift = { 3.140625, 0.484375},
+      shift = { -0.03125, -1.71875},
       animation_speed = 0.5,
       draw_as_shadow = true
     },}
