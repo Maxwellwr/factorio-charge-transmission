@@ -28,11 +28,11 @@ local function findRoboport(savedata)
       savedata.roboport = roboports[1]
       savedata.area = Position.expand_to_area(savedata.roboport.position,
         savedata.roboport.logistic_cell.construction_radius)
-      savedata.base.graphics_variation = k
+      savedata.base.graphics_variation = ((k-1)*6)+1
       return
     end
   end
-  savedata.base.graphics_variation = 5
+  savedata.base.graphics_variation = savedata.base.graphics_variation %24 + 1
 end
 
 local function registerBotCharger(charger)
@@ -65,6 +65,12 @@ Event.register(defines.events.on_robot_built_entity, function(event) registerBot
 Event.register(defines.events.on_player_mined_entity, function(event) removeBotCharger(event.entity) end)
 Event.register(defines.events.on_robot_mined_entity, function(event) removeBotCharger(event.entity) end)
 
+-- TODO: Swap roboports when you "rotate" the bot charger
+Event.register(defines.events.on_player_rotated_entity, function(event)
+  if(event.entity.name:find("charge%-transmission%-bot%-charger")) then
+    log("yes")
+  end
+end)
 
 -- TODO: Optimize this, make it squeaky clean
 -- * change the architecture so roboports are the grouping element, not the charger so that grouped-together chargers "share the burden"

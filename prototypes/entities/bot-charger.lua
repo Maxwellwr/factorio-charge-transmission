@@ -2,48 +2,39 @@ local Colours = require "libs/colour"
 
 local icon = {{icon = "__base__/graphics/icons/beacon.png", tint = Colours.fromHex("#00bbee")}}
 
--- TODO: Convert to a LuaLogisticCell holder
+local function base_rotations()
+  local pictures = {}
+  for i=0,23 do
+    pictures[i+1] = {
+      filename = "__ChargeTransmission__/graphics/entities/bot-charger/connection.png",
+      width = 128,
+      height = 128,
+      x=i%6 * 128,
+      y=math.floor(i/6) * 128,
+      shift = util.by_pixel(0, 4)
+    }
+  end
+  table.insert(pictures, {
+    filename = "__core__/graphics/empty.png",
+    width = 1,
+    height = 1,
+  })
+  return pictures
+end
+
+-- TODO: Rename to connection/cable
 local entity_base = {
   type = "simple-entity",
   name = "charge-transmission-bot-charger-base",
   icons = icon,
   flags = {"not-on-map"},
-  -- render_layer = "remnants",
+  render_layer = "remnants",
   collision_mask = {},
   collision_box = {{-0.9, -0.9}, {0.9, 0.9}},
   selection_box = {{-1, -1}, {1, 1}},
-  drawing_box = {{-1.5, -1.5}, {1.5, 1.5}},
+  drawing_box = {{-2, -2}, {2, 2}},
   selectable_in_game = false,
-  pictures = {{
-    filename = "__ChargeTransmission__/graphics/entities/bot-charger/base.png",
-    width = 64,
-    height = 64,
-    -- shift = util.by_pixel(0,-40),
-  },{
-    filename = "__ChargeTransmission__/graphics/entities/bot-charger/base.png",
-    width = 64,
-    height = 64,
-    x = 64,
-    -- shift = util.by_pixel(0,-40),
-  },{
-    filename = "__ChargeTransmission__/graphics/entities/bot-charger/base.png",
-    width = 64,
-    height = 64,
-    x = 64*2,
-    -- shift = util.by_pixel(16,-16),
-  },{
-    filename = "__ChargeTransmission__/graphics/entities/bot-charger/base.png",
-    width = 64,
-    height = 64,
-    x = 64*3,
-    -- shift = util.by_pixel(0,-40),
-  },{
-    filename = "__ChargeTransmission__/graphics/entities/bot-charger/base.png",
-    width = 64,
-    height = 64,
-    x = 64*4,
-    -- shift = util.by_pixel(16,-48-8),
-  }}
+  pictures = base_rotations()
 }
 
 local entity = {
@@ -55,25 +46,29 @@ local entity = {
   max_health = 200,
   corpse = "medium-remnants",
   dying_explosion = "medium-explosion",
-  collision_box = {{-0.9, -0.9}, {0.9, 0.9}},
+  collision_box = {{-0.8, -0.8}, {0.8, 0.8}},
   selection_box = {{-1, -1}, {1, 1}},
+  drawing_box = {{-1, -2}, {1, 1}},
   enable_gui = false,
-  -- module_specification = {
-  --   module_slots = 2,
-  --   module_info_icon_shift = {0, 0.5},
-  --   module_info_multi_row_initial_height_modifier = -0.3
-  -- },
-  -- allowed_effects = {"consumption", "speed", "pollution"},
+  
   animation = {
     layers = {{
+      filename = "__ChargeTransmission__/graphics/entities/bot-charger/base.png",
+      width = 64,
+      height = 64,
+      line_length = 8,
+      frame_count = 32,
+      shift = util.by_pixel(0, 4),
+      animation_speed = 0.5,
+    },{
       filename = "__base__/graphics/entity/beacon/beacon-antenna.png",
       width = 54,
       height = 50,
       line_length = 8,
       frame_count = 32,
       -- shift = { -0.03125, -1.71875},
-      shift = util.by_pixel(-1,-55+16),
-      tint = Colours.fromHex("#00ffff"),
+      shift = util.by_pixel(-1,-55+32-2),
+      tint = Colours.fromHex("#00bbee"),
       animation_speed = 0.5
     },{
       filename = "__base__/graphics/entity/beacon/beacon-antenna-shadow.png",
