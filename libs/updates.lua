@@ -1,6 +1,6 @@
 local Updates = {}
 
-Updates.replaceIngredient = function (recipe, type, old, new)
+Updates.replace_ingredient = function (recipe, type, old, new)
   for _, ingredient in pairs(recipe.ingredients) do
     if ingredient.type == type and ingredient.name == old then
       ingredient.name = new
