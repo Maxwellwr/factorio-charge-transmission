@@ -6,9 +6,6 @@ local Entity = require "stdlib/entity/entity"
 require "stdlib/event/event"
 
 local nodes, unpaired, is_node, is_done, bot_names
--- local bot_blacklist = {}
--- bot_blacklist["logistic-robot"] = false
--- bot_blacklist["construction-robot"] = false
 
 local function globalToLocal(isInit)
   if isInit then

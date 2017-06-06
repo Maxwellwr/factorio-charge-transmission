@@ -7,7 +7,6 @@ local Prototype = require "libs/prototype"
 
 local icon = {{icon = "__base__/graphics/icons/beacon.png", tint = Color.from_hex("#00bbee")}}
 
--- TODO: Rename to connection/cable
 local entity_transmitter = {
   type = "electric-energy-interface",
   name = "charge-transmission-charger-transmitter",
@@ -35,10 +34,12 @@ local entity_transmitter = {
   energy_usage = "0W",
 }
 
+-- TODO: clean this even more, there's a few unecessary fields that aren't simplified
 local entity_interface = {
   rotate = true,
   type = "roboport",
   name = "charge-transmission-charger-interface",
+  -- TODO: better icon?
   icons = icon,
   flags = {"not-on-map", "placeable-player", "player-creation"},
   corpse = "medium-remnants",
@@ -128,6 +129,7 @@ local entity_interface = {
   default_total_construction_output_signal = {type = "virtual", name = "signal-T"},
 
   vehicle_impact_sound =  { filename = "__base__/sound/car-metal-impact.ogg", volume = 0.65 },
+  -- TODO: Use beacon-like sounds
   working_sound = {
     sound = { filename = "__base__/sound/roboport-working.ogg", volume = 0.6 },
     max_sounds_per_type = 3,
