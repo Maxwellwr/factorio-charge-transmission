@@ -7,39 +7,18 @@ local Prototype = require "libs/prototype"
 
 local icon = {{icon = "__base__/graphics/icons/beacon.png", tint = Color.from_hex("#00bbee")}}
 
-local function base_rotations()
-  local pictures = {}
-  for i=0,23 do
-    pictures[i+1] = {
-      filename = "__ChargeTransmission__/graphics/entities/bot-charger/connection.png",
-      width = 128,
-      height = 128,
-      x=i%6 * 128,
-      y=math.floor(i/6) * 128,
-      shift = util.by_pixel(0, 8)
-    }
-  end
-  table.insert(pictures, {
-    filename = "__core__/graphics/empty.png",
-    width = 1,
-    height = 1,
-  })
-  return pictures
-end
-
 -- TODO: Rename to connection/cable
-local entity_powerbox = {
+local entity_transmitter = {
   type = "electric-energy-interface",
-  name = "charge-transmission-charger-powerbox",
-  icons = icon,
+  name = "charge-transmission-charger-transmitter",
+  icon = "__ChargeTransmission__/graphics/entities/charger/transmitter-icon.png",
   flags = {"player-creation"},
-  minable = {mining_time = 1, result = "charge-transmission-charger"},
-  max_health = 200,
   render_layer = "remnants",
   collision_mask = {},
   collision_box = {{-0.8, -0.8}, {0.8, 0.8}},
-  selection_box = {{-1, -1}, {1, 1}},
-  drawing_box = {{-2, -2}, {2, 2}},
+  selection_box = {{-0.5, -1}, {0.5, 0}},
+  drawing_box = {{0, 0}, {0, 0}},
+  selection_priority = 200,
   selectable_in_game = true,
   picture = Prototype.empty_sprite(),
   enable_gui = false,
@@ -50,28 +29,38 @@ local entity_powerbox = {
     usage_priority = "secondary-input",
     input_flow_limit = "10MW",
     output_flow_limit = "0W",
-    drain = "200kW",
+    drain = "0W",
   },
   energy_production = "0W",
   energy_usage = "0W",
 }
 
-local entity = {
+local entity_interface = {
+  rotate = true,
   type = "roboport",
-  name = "charge-transmission-charger",
+  name = "charge-transmission-charger-interface",
   icons = icon,
   flags = {"not-on-map", "placeable-player", "player-creation"},
   corpse = "medium-remnants",
-  dying_explosion = "medium-explosion",
+  minable = {hardness = 0.2, mining_time = 0.5, result = "charge-transmission-charger"},
   collision_box = {{-0.8, -0.8}, {0.8, 0.8}},
-  selection_box = {{-0.5, -1}, {0.5, 0}},
+  selection_box = {{-1, -1}, {1, 1}},
   drawing_box = {{-1, -1.5}, {1, 0.5}},
-  enable_gui = true,
+  dying_explosion = "medium-explosion",
+  resistances = {{
+    type = "fire",
+    percent = 60
+  },{
+    type = "impact",
+    percent = 30
+  }},
+  max_health = 200,
   energy_source = {
     type = "electric",
     usage_priority = "secondary-input",
-    input_flow_limit = "1MW",
-    buffer_capacity = "1MJ"
+    input_flow_limit = "5MW",
+    buffer_capacity = "100MJ",
+    drain = "200kW",
   },
   recharge_minimum = "0J",
   energy_usage = "0W",
@@ -110,8 +99,8 @@ local entity = {
   request_to_open_door_timeout = 15,
   spawn_and_station_height = -0.1,
 
-  draw_logistic_radius_visualization = true,
-  draw_construction_radius_visualization = true,
+  draw_logistic_radius_visualization = false,
+  draw_construction_radius_visualization = false,
 
   open_door_trigger_effect = {{
     type = "play-sound",
@@ -132,7 +121,7 @@ local entity = {
     }
   },
   circuit_connector_sprites = get_circuit_connector_sprites({0.59375, 1.3125}, nil, 18),
-  circuit_wire_max_distance = 9,
+  circuit_wire_max_distance = 0,
   default_available_logistic_output_signal = {type = "virtual", name = "signal-X"},
   default_total_logistic_output_signal = {type = "virtual", name = "signal-Y"},
   default_available_construction_output_signal = {type = "virtual", name = "signal-Z"},
@@ -150,17 +139,19 @@ local entity = {
 local item = {
   type = "item",
   name = "charge-transmission-charger",
-  icons = icon,
+  localized_name = {"item-name.charge-transmission-charger"},
+  icon = "__ChargeTransmission__/graphics/entities/charger/transmitter-icon.png",
   flags = {"goes-to-quickbar"},
-  subgroup = "module",
-  order = "a[beacon]",
-  place_result = "charge-transmission-charger",
-  stack_size = 10
+  subgroup = "logistic-network",
+  order = "c[signal]-a[roboport]",
+  place_result = "charge-transmission-charger-interface",
+  stack_size = 20
 }
 
 local recipe = {
   type = "recipe",
   name = "charge-transmission-charger",
+  localized_name = {"item-name.charge-transmission-charger"},
   enabled = false,
   energy_required = 15,
   ingredients =
@@ -176,8 +167,9 @@ local recipe = {
 
 local technology = {
   type = "technology",
-  name = "charge-transmission",
-  icon = "__base__/graphics/technology/effect-transmission.png",
+  name = "charge-transmission-charger",
+  icon = "__ChargeTransmission__/graphics/entities/charger/technology.png",
+  icon_size = 128,
   effects =
   {
     {
@@ -185,15 +177,15 @@ local technology = {
       recipe = "charge-transmission-charger"
     }
   },
-  prerequisites = {"effect-transmission", "robotics"},
+  prerequisites = {"effect-transmission", "robotics", "effectivity-module-2"},
   unit =
   {
-    count = 125,
+    count = 250,
     ingredients =
     {
       {"science-pack-1", 1},
       {"science-pack-2", 1},
-      {"science-pack-3", 1},
+      {"science-pack-3", 2},
       {"high-tech-science-pack", 2}
     },
     time = 30
@@ -201,4 +193,4 @@ local technology = {
   order = "i-i"
 }
 
-data:extend{entity_powerbox, entity, item, recipe, technology}
+data:extend{entity_transmitter, entity_interface, item, recipe, technology}
