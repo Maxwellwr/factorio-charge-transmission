@@ -300,7 +300,7 @@ script.on_event(defines.events.on_tick, function(event)
     local energy = 0
     for cid=#(node.chargers),1,-1 do
       -- reverse iteration to allow for removals
-      if node.chargers[cid].valid then
+      if node.chargers[cid].valid and node.chargers.energy >= node.chargers.electric_drain then
         local transmitter = Entity.get_data(node.chargers[cid]).transmitter
         energy = energy + transmitter.energy
       else

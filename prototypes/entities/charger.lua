@@ -74,6 +74,7 @@ local entity_interface = {
   material_slots_count = 0,
   stationing_offset = {0, 0},
   charging_offsets = {},
+  -- TODO: Better base graphics, yes.
   base = {
     filename = "__ChargeTransmission__/graphics/entities/charger/base.png",
     width = 64,
