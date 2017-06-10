@@ -122,8 +122,18 @@ local function onBuiltCharger(entity)
     }
     transmitter.destructible = false
     Entity.set_data(transmitter, {main = entity})
+    local warning = entity.surface.create_entity{
+      name = "charge-transmission-charger-warning",
+      position = entity.position,
+    }
+    warning.destructible = false
+    warning.graphics_variation = 1
 
-    local data = {transmitter = transmitter}
+    local data = {
+      transmitter = transmitter,
+      warning = warning,
+      composite = {transmitter, warning}
+    }
     data.index, data.cell = findNeighbourCells(entity)
     Entity.set_data(entity, data)
 
@@ -177,7 +187,10 @@ local function onMinedCharger(charger)
   if(charger.name:find("charge%-transmission%-charger")) then
     -- remove composite partners
     local data = Entity.get_data(charger)
-    data.transmitter.destroy()
+    for _, slave in pairs(data.composite) do
+      if slave.valid then slave.destroy() end
+    end
+    -- data.transmitter.destroy()
     Entity.set_data(charger, nil)
 
     -- remove oneself from nodes
@@ -300,7 +313,7 @@ script.on_event(defines.events.on_tick, function(event)
     local energy = 0
     for cid=#(node.chargers),1,-1 do
       -- reverse iteration to allow for removals
-      if node.chargers[cid].valid and node.chargers.energy >= node.chargers.electric_drain then
+      if node.chargers[cid].valid and node.chargers[cid].energy >= node.chargers[cid].electric_drain then
         local transmitter = Entity.get_data(node.chargers[cid]).transmitter
         energy = energy + transmitter.energy
       else
@@ -310,6 +323,7 @@ script.on_event(defines.events.on_tick, function(event)
 
     -- check total energy cost
     local cost = 0
+    local debt = 0
     -- local bots = 0
     local constrobots, logibots =
       node.cell.owner.surface.find_entities_filtered {
@@ -322,7 +336,6 @@ script.on_event(defines.events.on_tick, function(event)
         force = node.cell.owner.force,
         type = "logistic-robot"
       }
-    local debt = 0
 
     if #constrobots + #logibots > 0 then
       for bid=1,#constrobots + #logibots do
@@ -341,18 +354,42 @@ script.on_event(defines.events.on_tick, function(event)
         end
       end
 
-      debt = cost
-      -- overspending so the machine only charged so many robots
-      if cost >= energy then debt = energy end
       -- split the energetic debt between the chargers and time
-      debt = debt / (60 * #(node.chargers))
+      debt = cost / (60 * #(node.chargers))
       -- log("#"..node.id..":debt "..debt..":cost "..cost..":energy "..energy..":bots "..bots)
     end
 
     -- set power cost on the transmitteres
     for cid=1, #(node.chargers) do
-      local transmitter = Entity.get_data(node.chargers[cid]).transmitter
-      transmitter.power_usage = debt
+      local data = Entity.get_data(node.chargers[cid])
+      data.transmitter.power_usage = debt
+
+      -- state machine:
+      --   1: neutral, don't display
+      --   2: active, don't display
+      --   3: active, display (toggled below)
+      if cost >= energy or debt > data.transmitter.electric_input_flow_limit then
+        data.warning.graphics_variation = 2
+      else
+        data.warning.graphics_variation = 1
+      end
+    end
+  end
+
+  -- displays the blinking custom warning for undercapacity
+  if event.tick%30 == 0 then
+    for _, node in pairs(nodes) do
+      for _, charger in pairs(node.chargers) do
+        local warning = Entity.get_data(charger).warning
+
+        if warning.graphics_variation ~= 1 then
+          if event.tick%60 == 0 then
+            warning.graphics_variation = 2
+          else
+            warning.graphics_variation = 3
+          end
+        end
+      end
     end
   end
 end)

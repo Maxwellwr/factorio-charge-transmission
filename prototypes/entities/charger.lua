@@ -7,19 +7,50 @@ local Prototype = require "libs/prototype"
 
 local icon = {{icon = "__base__/graphics/icons/beacon.png", tint = Color.from_hex("#00bbee")}}
 
+local entity_warning = {
+  type = "simple-entity",
+  name = "charge-transmission-charger-warning",
+  render_layer = "entity-info-icon",
+  icon = "__ChargeTransmission__/graphics/entities/charger/transmitter-icon.png",
+  flags = {"not-on-map"},
+  selectable_in_game = false,
+  collision_mask = {},
+  collision_box = {{-0.8, -0.8}, {0.8, 0.8}},
+  selection_box = {{-0.5, -0.5}, {0.5, 0.5}},
+  pictures = {
+    Prototype.empty_sprite(),
+    Prototype.empty_sprite(), -- state machine requires two empty sprites
+  {
+    priority = "extra-high",
+    width = 100,
+    height = 100,
+    filename = "__ChargeTransmission__/graphics/entities/charger/capped-out-icon.png",
+    scale = 0.5,
+    flags = { "icon" },
+  }}
+}
+
 local entity_transmitter = {
   type = "electric-energy-interface",
   name = "charge-transmission-charger-transmitter",
   icon = "__ChargeTransmission__/graphics/entities/charger/transmitter-icon.png",
-  flags = {"player-creation"},
-  render_layer = "remnants",
+  flags = {"player-creation", "not-on-map"},
+  render_layer = "higher-object-above",
   collision_mask = {},
   collision_box = {{-0.8, -0.8}, {0.8, 0.8}},
   selection_box = {{-0.5, -1}, {0.5, 0}},
-  drawing_box = {{0, 0}, {0, 0}},
   selection_priority = 200,
   selectable_in_game = true,
-  picture = Prototype.empty_sprite(),
+  animation = {
+    filename = "__base__/graphics/entity/beacon/beacon-antenna.png",
+    width = 54,
+    height = 50,
+    line_length = 8,
+    frame_count = 32,
+    shift = util.by_pixel(-1,-55+32+4),
+    tint = Color.from_hex("#00bbee"),
+    animation_speed = 0.5
+  },
   enable_gui = false,
   allow_copy_paste = false,
   energy_source = {
@@ -82,17 +113,7 @@ local entity_interface = {
     shift = util.by_pixel(0, 8),
   },
   base_patch = Prototype.empty_sprite(),
-  base_animation = {
-    filename = "__base__/graphics/entity/beacon/beacon-antenna.png",
-    width = 54,
-    height = 50,
-    line_length = 8,
-    frame_count = 32,
-    -- shift = { -0.03125, -1.71875},
-    shift = util.by_pixel(-1,-55+32+4),
-    tint = Color.from_hex("#00bbee"),
-    animation_speed = 0.5
-  },
+  base_animation = Prototype.empty_animation(),
   door_animation_up = Prototype.empty_animation(),
   door_animation_down = Prototype.empty_animation(),
   recharging_animation = Prototype.empty_animation(),
@@ -130,13 +151,6 @@ local entity_interface = {
   default_total_construction_output_signal = {type = "virtual", name = "signal-T"},
 
   vehicle_impact_sound =  { filename = "__base__/sound/car-metal-impact.ogg", volume = 0.65 },
-  -- TODO: Use beacon-like sounds
-  working_sound = {
-    sound = { filename = "__base__/sound/roboport-working.ogg", volume = 0.6 },
-    max_sounds_per_type = 3,
-    audible_distance_modifier = 0.5,
-    probability = 1 / (5 * 60) -- average pause between the sound is 5 seconds
-  },
 }
 
 local item = {
@@ -196,4 +210,4 @@ local technology = {
   order = "i-i"
 }
 
-data:extend{entity_transmitter, entity_interface, item, recipe, technology}
+data:extend{entity_warning, entity_transmitter, entity_interface, item, recipe, technology}
