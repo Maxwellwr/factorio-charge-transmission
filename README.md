@@ -17,7 +17,7 @@ Enter the **Bot Charger**, the only (for now?) entity added by this mod, which w
 
 0. Research Charge Transmission;
 1. Place **Bot Charger** near the desired roboport;
-   - Reassign the target, if necessary, by selecting its antenna and rotating it (pressing <kbd><kbd>R</kbd></kbd>);
+   - Reassign the target, if necessary, by selecting its antenna and rotating it (pressing <kbd>R</kbd>);
 2. You're done.
 
 From now on, the charger will scan over that roboport's *construction range* and recharge any bots inside it every second or so.
@@ -28,9 +28,9 @@ Chargers connected to the same roboport will share the load between themselves; 
 
 Chargers will try to pair up with the closest roboport by default, preferring roboports that are already connected to other chargers. *You can see what roboport a charger's servicing by selecting the charger's antenna*, a giant arrow will appear pointing at the roboport while you do so.
 
-<blockquote class="imgur-embed-pub" lang="en" data-id="Zn4HQwT"><a href="//imgur.com/Zn4HQwT">View post on imgur.com</a></blockquote><script async src="//s.imgur.com/min/embed.js" charset="utf-8"></script>
+![roboport with picker arrow because of highlighted antenna](https://media.giphy.com/media/l0IymrhGnuE4MhTd6/giphy.gif)
 
-To change the target roboport, rotate the charger's antenna with <kbd><kbd>R</kbd></kbd> until the arrow points at your preferred spot. A roboport will only be a possible target if it has the charger as its neighbour (in other words, if it is inside its logistic range).
+To change the target roboport, rotate the charger's antenna with <kbd>R</kbd> until the arrow points at your preferred spot. A roboport will only be a possible target if it has the charger as its neighbour (in other words, if it is inside its logistic range).
 
 ## Power usage
 
@@ -54,7 +54,7 @@ If that sounds low, don't worry: because robots go faster, from the speed resear
 
 A charger will display a custom alert over itself when it is **overtaxed**. It's hard to miss as it blinks like any other in-game alert.
 
-![roboport with two chargers overtaxed, showing an alert and bots charging](https://i.imgur.com/NszCK0M.png)
+![roboport with two chargers overtaxed, showing an alert and bots charging](https://i.imgur.com/11cRwBi.png)
 
 This means that the charger's power needs are bigger than what it can take from the network. Now, this may mean two possibilities: either your power supply isn't sufficient or, most likely than not, there's just too many robots for that single charger to handle at once, as they have a max 10MW buffer recharge rate. For contrast, a vanilla roboport has a 5MW max recharge rate.
 
