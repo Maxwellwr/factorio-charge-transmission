@@ -3,6 +3,7 @@ local Position = require "stdlib/area/position"
 -- local Area = require "stdlib/area/area"
 -- local Surface = require "stdlib/surface"
 local Entity = require "stdlib/entity/entity"
+-- require "libs/quickstart"
 require "stdlib/event/event"
 
 local nodes, unpaired, is_node, is_done, bot_names
@@ -73,10 +74,18 @@ local function findNeighbourCells(charger)
   local neighbours = charger.logistic_cell.neighbours
   local index = nil
   local distance = math.huge
-  for i=1,#neighbours do
-    local new_distance = Position.distance_squared(charger.position, neighbours[i].owner.position)
-    if new_distance < distance then distance = new_distance; index = i end
+  local foundNode = false
+  for i, neighbour in ipairs(neighbours) do
+    if is_node[neighbour.owner.unit_number] then
+      foundNode = true
+      local new_distance = Position.distance_squared(charger.position, neighbour.owner.position)
+      if new_distance < distance then distance = new_distance; index = i end
+    elseif not foundNode then
+      local new_distance = Position.distance_squared(charger.position, neighbour.owner.position)
+      if new_distance < distance then distance = new_distance; index = i end
+    end
   end
+
   if index then
     return index, neighbours[index]
   end
@@ -256,6 +265,7 @@ end)
 --    (also solves the issue of a charger having only so much input current)
 -- ✓  abstract the robot types to a setting which auto-updates to just save the name and max energy
 -- *  code check
+-- *  move stuff to pairs()
 -- ✓? add more .valid checks
 script.on_event(defines.events.on_tick, function(event)
   -- charger re-pairing every 5 seconds
@@ -313,9 +323,16 @@ script.on_event(defines.events.on_tick, function(event)
     local energy = 0
     for cid=#(node.chargers),1,-1 do
       -- reverse iteration to allow for removals
-      if node.chargers[cid].valid and node.chargers[cid].energy >= node.chargers[cid].electric_drain then
+      if node.chargers[cid].valid then
         local transmitter = Entity.get_data(node.chargers[cid]).transmitter
-        energy = energy + transmitter.energy
+        transmitter.power_usage = 0
+        -- TODO: energy_usage is a constant, refactor away
+        if node.chargers[cid].energy >= node.chargers[cid].prototype.energy_usage then
+          energy = energy + transmitter.energy
+        else
+          -- Reset out of overtaxed (because it's the interface that is dying, not the antenna)
+          Entity.get_data(node.chargers[cid]).warning.graphics_variation = 1
+        end
       else
         table.remove(node.chargers, cid)
       end
@@ -345,7 +362,7 @@ script.on_event(defines.events.on_tick, function(event)
         local max_energy = bot_names[bot.name]
 
         if bot and max_energy and not(is_done[bot.unit_number]) then
-          cost = cost + (max_energy - bot.energy) * 1.25
+          cost = cost + (max_energy - bot.energy) * 1.5
           if cost < energy then
             bot.energy = max_energy
             is_done[bot.unit_number] = true
@@ -360,23 +377,30 @@ script.on_event(defines.events.on_tick, function(event)
     end
 
     -- set power cost on the transmitteres
-    for cid=1, #(node.chargers) do
-      local data = Entity.get_data(node.chargers[cid])
-      data.transmitter.power_usage = debt
+    -- TODO: there's two constants down there, we should cache them!
+    local overtaxed = cost > energy or debt > game.entity_prototypes["charge-transmission-charger-transmitter"].electric_energy_source_prototype.input_flow_limit
+    for _, charger in pairs(node.chargers) do
+      if charger.energy >= charger.prototype.energy_usage then
+        local data = Entity.get_data(charger)
+        data.transmitter.power_usage = debt
 
-      -- state machine:
-      --   1: neutral, don't display
-      --   2: active, don't display
-      --   3: active, display (toggled below)
-      if cost >= energy or debt > data.transmitter.electric_input_flow_limit then
-        data.warning.graphics_variation = 2
-      else
-        data.warning.graphics_variation = 1
+        -- state machine:
+        --   1: neutral, don't display
+        --   2: active, don't display
+        --   3: active, display (toggled below)
+        -- 1->2, 2/3->1
+        if overtaxed then
+          if data.warning.graphics_variation == 1 then
+            data.warning.graphics_variation = 2
+          end
+        else
+          data.warning.graphics_variation = 1
+        end
       end
     end
   end
 
-  -- displays the blinking custom warning for undercapacity
+  -- displays the blinking custom warning for overtaxing
   if event.tick%30 == 0 then
     for _, node in pairs(nodes) do
       for _, charger in pairs(node.chargers) do

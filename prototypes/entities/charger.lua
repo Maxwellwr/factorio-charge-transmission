@@ -24,7 +24,7 @@ local entity_warning = {
     priority = "extra-high",
     width = 100,
     height = 100,
-    filename = "__ChargeTransmission__/graphics/entities/charger/capped-out-icon.png",
+    filename = "__ChargeTransmission__/graphics/capped-out-icon.png",
     scale = 0.5,
     flags = { "icon" },
   }}
@@ -55,7 +55,7 @@ local entity_transmitter = {
   allow_copy_paste = false,
   energy_source = {
     type = "electric",
-    buffer_capacity = "50MJ",
+    buffer_capacity = "200MJ",
     usage_priority = "secondary-input",
     input_flow_limit = "10MW",
     output_flow_limit = "0W",
@@ -70,7 +70,7 @@ local entity_interface = {
   rotate = true,
   type = "roboport",
   name = "charge-transmission-charger-interface",
-  -- TODO: better icon?
+  -- TODO: better icon for the interface?
   icons = icon,
   flags = {"not-on-map", "placeable-player", "player-creation"},
   corpse = "medium-remnants",
@@ -90,14 +90,13 @@ local entity_interface = {
   energy_source = {
     type = "electric",
     usage_priority = "secondary-input",
-    input_flow_limit = "5MW",
-    buffer_capacity = "100MJ",
-    drain = "200kW",
+    input_flow_limit = "10MW",
+    buffer_capacity = "2MJ",
   },
-  recharge_minimum = "0J",
-  energy_usage = "0W",
+  recharge_minimum = "1J",
+  energy_usage = "314kW",
   -- per one charge slot
-  charging_energy = "0W",
+  charging_energy = "0kW",
   logistics_radius = 0,
   construction_radius = 0,
   charge_approach_distance = 0,
@@ -174,10 +173,9 @@ local recipe = {
   ingredients =
   {
     {"beacon", 1},
-    {"radar", 1},
+    {"radar", 2},
+    {"processing-unit", 10},
     {"battery", 20},
-    {"processing-unit", 20},
-    {"copper-cable", 20}
   },
   result = "charge-transmission-charger"
 }
@@ -194,15 +192,15 @@ local technology = {
       recipe = "charge-transmission-charger"
     }
   },
-  prerequisites = {"effect-transmission", "robotics", "effectivity-module-2"},
+  prerequisites = {"effect-transmission", "robotics", "effectivity-module-3"},
   unit =
   {
-    count = 250,
+    count = 200,
     ingredients =
     {
       {"science-pack-1", 1},
       {"science-pack-2", 1},
-      {"science-pack-3", 2},
+      {"science-pack-3", 1},
       {"high-tech-science-pack", 2}
     },
     time = 30
