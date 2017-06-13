@@ -341,6 +341,7 @@ script.on_event(defines.events.on_tick, function(event)
       if not node.cell.valid or #(node.chargers) <= 0 then
         log(node.id.."!"..#(node.chargers))
         -- node is invalid: remove node, orphan chargers
+        -- TODO: fix unpaired so either iteration works here
         for _, charger in pairs(node.chargers) do
           if charger and charger.valid then
             local data = Entity.get_data(charger)
@@ -360,6 +361,7 @@ script.on_event(defines.events.on_tick, function(event)
   end
 
   -- area scanning
+  -- TODO: add +1 so it always does the non-tick one
   local max
   if global.done_nodes > global.total_nodes%5 then max = math.ceil(global.total_nodes/5)
   else max = math.floor(global.total_nodes/5) end
@@ -369,6 +371,7 @@ script.on_event(defines.events.on_tick, function(event)
     local node
     global.nid, node = next(nodes, global.nid)
     log(node.id..":"..iter.." of "..max.." in "..global.total_nodes)
+    -- TODO: move stuff of tick 0 over here and make it call next again
 
     if node and node.cell.valid then
       -- calculate total available energy
