@@ -3,10 +3,46 @@ local Position = require "stdlib/area/position"
 -- local Area = require "stdlib/area/area"
 -- local Surface = require "stdlib/surface"
 local Entity = require "stdlib/entity/entity"
--- require "libs/quickstart"
+require "libs/quickstart"
 require "stdlib/event/event"
 
 local nodes, unpaired, is_node, is_done, bot_names
+
+MOD.config.quickstart = {
+    mod_name = "ChargeTransmission",
+    clear_items = true,
+    power_armor = "power-armor-mk2",
+    equipment = {
+        "creative-mode_super-fusion-reactor-equipment",
+        "personal-roboport-mk2-equipment",
+        "belt-immunity-equipment"
+    },
+    starter_tracks = true,
+    destroy_everything = true,
+    disable_rso_starting = true,
+    disable_rso_chunk = true,
+    floor_tile = "lab-dark-1",
+    floor_tile_alt = "lab-dark-2",
+    ore_patches = true,
+    make_train = true,
+    area_box = {{-250, -250}, {250, 250}},
+    chunk_bounds = true,
+    center_map_tag = true,
+    setup_power = true,
+    stacks = {
+        "construction-robot",
+    },
+    quickbar = {
+        "picker-tape-measure",
+        "creative-mode_item-source",
+        "creative-mode_fluid-source",
+        "creative-mode_energy-source",
+        "creative-mode_super-substation",
+        "creative-mode_magic-wand-modifier",
+        "creative-mode_super-roboport",
+        "charge-transmission_charger"
+    }
+}
 
 local function globalToLocal(isInit)
   if isInit then
@@ -125,14 +161,14 @@ end
 local function onBuiltCharger(entity)
   if(entity.name:find("charge%-transmission%-charger")) then
     local transmitter = entity.surface.create_entity{
-      name = "charge-transmission-charger-transmitter",
+      name = "charge-transmission_charger-transmitter",
       position = entity.position,
       force = entity.force
     }
     transmitter.destructible = false
     Entity.set_data(transmitter, {main = entity})
     local warning = entity.surface.create_entity{
-      name = "charge-transmission-charger-warning",
+      name = "charge-transmission_charger-warning",
       position = entity.position,
     }
     warning.destructible = false
@@ -378,7 +414,7 @@ script.on_event(defines.events.on_tick, function(event)
 
     -- set power cost on the transmitteres
     -- TODO: there's two constants down there, we should cache them!
-    local overtaxed = cost > energy or debt > game.entity_prototypes["charge-transmission-charger-transmitter"].electric_energy_source_prototype.input_flow_limit
+    local overtaxed = cost > energy or debt > game.entity_prototypes["charge-transmission_charger-transmitter"].electric_energy_source_prototype.input_flow_limit
     for _, charger in pairs(node.chargers) do
       if charger.energy >= charger.prototype.energy_usage then
         local data = Entity.get_data(charger)

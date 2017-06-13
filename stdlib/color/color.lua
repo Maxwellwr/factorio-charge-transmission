@@ -2,7 +2,6 @@
 -- @module Color
 -- @usage local Color = require('stdlib/color/color')
 
-require 'stdlib/defines.color'
 local fail_if_missing = require 'stdlib/core'['fail_if_missing']
 
 Color = {} --luacheck: allow defined top
@@ -26,6 +25,18 @@ function Color.to_table(c_arr)
         return {r = c_arr[1], g = c_arr[2], b = c_arr[3], a = c_arr[4]}
     end
     return c_arr
+end
+
+--- Converts a color in the rgb format to a color table
+-- @tparam[opt=0] int r 0-255 red
+-- @tparam[opt=0] int g 0-255 green
+-- @tparam[opt=0] int b 0-255 blue
+-- @treturn LuaColor
+function Color.from_rgb(r, g, b)
+    r = r or 0
+    g = g or 0
+    b = b or 0
+    return {r = r/255, g = g/255, b = b/255}
 end
 
 --- Return a color table with alpha added from a hexadecimal string.

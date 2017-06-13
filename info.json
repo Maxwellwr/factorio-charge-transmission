@@ -3,8 +3,8 @@
     "version": "0.2.0",
     "title": "Charge Transmission",
     "author": "Dustine",
-    "dependencies": ["base >= 0.15.18"],
-    "description": "Special beacons that wirelessly charges bots around them. An idea by Mike C from the KatherineOfSkies community.",
+    "dependencies": ["base >= 0.15.19"],
+    "description": "Special beacons that wirelessly charge bots around them. An idea by Mike C from the KatherineOfSkies community.",
     "factorio_version": "0.15",
     "homepage": "https://github.com/dustine/ChargeTransmission",
     "repository": "https://github.com/dustine/ChargeTransmission"

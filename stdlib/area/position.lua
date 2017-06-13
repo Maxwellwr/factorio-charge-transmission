@@ -246,10 +246,6 @@ function Position.increment(position, inc_x, inc_y)
     end
 end
 
-
-
-
-
 --- Returns a position centered on the tile
 -- @tparam LuaPosition pos the position to center
 -- @treturn LuaPosition a centered position table

@@ -9,7 +9,7 @@ local icon = {{icon = "__base__/graphics/icons/beacon.png", tint = Color.from_he
 
 local entity_warning = {
   type = "simple-entity",
-  name = "charge-transmission-charger-warning",
+  name = "charge-transmission_charger-warning",
   render_layer = "entity-info-icon",
   icon = "__ChargeTransmission__/graphics/entities/charger/transmitter-icon.png",
   flags = {"not-on-map"},
@@ -32,7 +32,7 @@ local entity_warning = {
 
 local entity_transmitter = {
   type = "electric-energy-interface",
-  name = "charge-transmission-charger-transmitter",
+  name = "charge-transmission_charger-transmitter",
   icon = "__ChargeTransmission__/graphics/entities/charger/transmitter-icon.png",
   flags = {"player-creation", "not-on-map"},
   render_layer = "higher-object-above",
@@ -69,12 +69,12 @@ local entity_transmitter = {
 local entity_interface = {
   rotate = true,
   type = "roboport",
-  name = "charge-transmission-charger-interface",
+  name = "charge-transmission_charger-interface",
   -- TODO: better icon for the interface?
   icons = icon,
   flags = {"not-on-map", "placeable-player", "player-creation"},
   corpse = "medium-remnants",
-  minable = {hardness = 0.2, mining_time = 0.5, result = "charge-transmission-charger"},
+  minable = {hardness = 0.2, mining_time = 0.5, result = "charge-transmission_charger"},
   collision_box = {{-0.8, -0.8}, {0.8, 0.8}},
   selection_box = {{-1, -1}, {1, 1}},
   drawing_box = {{-1, -1.5}, {1, 0.5}},
@@ -154,20 +154,20 @@ local entity_interface = {
 
 local item = {
   type = "item",
-  name = "charge-transmission-charger",
-  localized_name = {"item-name.charge-transmission-charger"},
+  name = "charge-transmission_charger",
+  localized_name = {"item-name.charge-transmission_charger"},
   icon = "__ChargeTransmission__/graphics/entities/charger/transmitter-icon.png",
   flags = {"goes-to-quickbar"},
   subgroup = "logistic-network",
   order = "c[signal]-a[roboport]",
-  place_result = "charge-transmission-charger-interface",
+  place_result = "charge-transmission_charger-interface",
   stack_size = 20
 }
 
 local recipe = {
   type = "recipe",
-  name = "charge-transmission-charger",
-  localized_name = {"item-name.charge-transmission-charger"},
+  name = "charge-transmission_charger",
+  localized_name = {"item-name.charge-transmission_charger"},
   enabled = false,
   energy_required = 15,
   ingredients =
@@ -177,19 +177,19 @@ local recipe = {
     {"processing-unit", 10},
     {"battery", 20},
   },
-  result = "charge-transmission-charger"
+  result = "charge-transmission_charger"
 }
 
 local technology = {
   type = "technology",
-  name = "charge-transmission-charger",
+  name = "charge-transmission_charger",
   icon = "__ChargeTransmission__/graphics/entities/charger/technology.png",
   icon_size = 128,
   effects =
   {
     {
       type = "unlock-recipe",
-      recipe = "charge-transmission-charger"
+      recipe = "charge-transmission_charger"
     }
   },
   prerequisites = {"effect-transmission", "robotics", "effectivity-module-3"},
