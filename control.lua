@@ -3,11 +3,9 @@ local Position = require "stdlib/area/position"
 -- local Area = require "stdlib/area/area"
 -- local Surface = require "stdlib/surface"
 local Entity = require "stdlib/entity/entity"
-require "libs/quickstart"
 require "stdlib/event/event"
 
-local nodes, unpaired, is_node, is_done, bot_names
-
+MOD = {config = {}}
 MOD.config.quickstart = {
     mod_name = "ChargeTransmission",
     clear_items = true,
@@ -43,27 +41,29 @@ MOD.config.quickstart = {
         "charge-transmission_charger"
     }
 }
+require "stdlib/debug/quickstart"
 
-local function globalToLocal(isInit)
-  if isInit then
-    global.ChargeTransmission = global.ChargeTransmission or {}
-
-    global.ChargeTransmission.charger_nodes = global.ChargeTransmission.charger_nodes or {}
-    global.ChargeTransmission.is_charger_node = global.ChargeTransmission.is_charger_node or {}
-    global.ChargeTransmission.is_refilled_bot = global.ChargeTransmission.is_refilled_bot or {}
-    global.ChargeTransmission.unpaired_chargers = global.ChargeTransmission.unpaired_chargers or {}
-    global.ChargeTransmission.bot_names = global.ChargeTransmission.bot_names or {}
+local nodes, is_node, is_charged, unpaired, bot_max
+local function init_global(is_load)
+  if not is_load then
+    global.nodes = global.nodes or {}
+    global.is_node = global.is_node or {}
+    global.is_charged = global.is_charged or {}
+    global.unpaired = global.unpaired or {}
+    global.bot_max = global.bot_max or {}
+    global.logis_bot_max = global.logis_bot_max or {}
+    global.constr_bot_max = global.constr_bot_max or {}
   end
 
-  nodes = global.ChargeTransmission.charger_nodes
-  is_node = global.ChargeTransmission.is_charger_node
-  is_done = global.ChargeTransmission.is_refilled_bot
-  unpaired = global.ChargeTransmission.unpaired_chargers
-  bot_names = global.ChargeTransmission.bot_names
+  nodes = global.nodes
+  is_node = global.is_node
+  is_charged = global.is_charged
+  unpaired = global.unpaired
+  bot_max = global.bot_max
 end
 
 -- Automatically blacklists chargeless robots (Creative Mode, Nuclear/Fusion Bots, ...)
-local function isValidBotProto(proto)
+local function is_chargeable_bot(proto)
   -- Creative Mode; Nuclear Robots; Jamozed's Fusion Robots
   if proto.energy_per_tick == 0 and proto.energy_per_move == 0 then return false end
   -- (use case without known mods that haven't already matched previously)
@@ -72,41 +72,43 @@ local function isValidBotProto(proto)
   return true
 end
 
-local function registerBotNames()
-  global.ChargeTransmission.bot_names = {}
-  bot_names = global.ChargeTransmission.bot_names
+local function set_chargeable_bots()
+  global.bot_max = {}
+  bot_max = global.bot_max
 
   for _, proto in pairs(game.entity_prototypes) do
     if proto.type == "logistic-robot" then
-      if isValidBotProto(proto) then
-        bot_names[proto.name] = proto.max_energy
+      if is_chargeable_bot(proto) then
+        bot_max[proto.name] = proto.max_energy
       end
     elseif proto.type == "construction-robot" then
-      if isValidBotProto(proto) then
-        bot_names[proto.name] = proto.max_energy
+      if is_chargeable_bot(proto) then
+        bot_max[proto.name] = proto.max_energy
       end
     end
   end
 
-  log(serpent.block(global.ChargeTransmission.bot_names))
+  -- log(serpent.block(global.ChargeTransmission.bot_names))
 end
 
 script.on_init(function ()
-  globalToLocal(true)
-  registerBotNames()
+  init_global()
+  set_chargeable_bots()
 end)
 
+-- local nodes
 script.on_load(function ()
-  globalToLocal()
+  -- nodes = global.nodes
+  init_global(true)
 end)
 
 script.on_configuration_changed(function ()
-  registerBotNames()
+  set_chargeable_bots()
 end)
 
 
 -- TODO: Prioritize node-bearing cells
-local function findNeighbourCells(charger)
+local function get_closest_cell(charger)
   local neighbours = charger.logistic_cell.neighbours
   local index = nil
   local distance = math.huge
@@ -123,11 +125,11 @@ local function findNeighbourCells(charger)
   end
 
   if index then
-    return index, neighbours[index]
+    return neighbours[index], index
   end
 end
 
-local function findNodeFromCell(cell)
+local function find_node(cell)
   for _, node in pairs(nodes) do
     if node.cell.valid and node.cell.owner.unit_number == cell.owner.unit_number then
       return node
@@ -137,8 +139,8 @@ end
 
 -- Registers a charger, placing it on its rightful node (or creating a new one)
 -- Warning: does not update the charger entity's data to point at the cell
-local function registerCharger(charger, cell)
-  local node = findNodeFromCell(cell)
+local function pair_charger(charger, cell)
+  local node = find_node(cell)
   if not node then
     -- new node
     node = {cell = cell, chargers = {}, id = cell.owner.unit_number}
@@ -146,11 +148,11 @@ local function registerCharger(charger, cell)
     -- register the node
     table.insert(nodes, node)
     is_node[node.id] = true
-    -- log("new node "..node.id.." for cell "..cell.owner.unit_number)
+    log("new node "..node.id.." for cell "..cell.owner.unit_number)
   end
 
   table.insert(node.chargers, charger)
-  -- log("added charger "..charger.unit_number.." to node "..node.id)
+  log("added charger "..charger.unit_number.." to node "..node.id)
   return node
 end
 
@@ -158,8 +160,8 @@ end
 --  Creates the composite unit (radar)
 --  Tries to find the closest logistic cell (roboport) and register it
 --   Else, adds it as an unpaired charger
-local function onBuiltCharger(entity)
-  if(entity.name:find("charge%-transmission%-charger")) then
+local function on_built_charger(entity)
+  if(entity.name:find("charge%-transmission_charger")) then
     local transmitter = entity.surface.create_entity{
       name = "charge-transmission_charger-transmitter",
       position = entity.position,
@@ -179,21 +181,21 @@ local function onBuiltCharger(entity)
       warning = warning,
       composite = {transmitter, warning}
     }
-    data.index, data.cell = findNeighbourCells(entity)
+    data.cell, data.index = get_closest_cell(entity)
     Entity.set_data(entity, data)
 
     if data.cell then
-      -- log("created reserved charger "..entity.unit_number.." for node "..data.cell.owner.unit_number)
-      registerCharger(entity, data.cell)
+      log("created reserved charger "..entity.unit_number.." for node "..data.cell.owner.unit_number)
+      pair_charger(entity, data.cell)
     else
-      -- log("created unpaired charger "..entity.unit_number)
+      log("created unpaired charger "..entity.unit_number)
       table.insert(unpaired, entity)
     end
   end
 end
 
 -- Removes a charger from, either the node (cell) it has saved, or from all if the node is invalid
-local function removeChargerFromNodes(charger, charger_data)
+local function unpair_charger(charger, charger_data)
   charger_data = charger_data or Entity.get_data(charger)
   local owner_cell = charger_data and charger_data.cell
 
@@ -228,8 +230,8 @@ local function removeChargerFromNodes(charger, charger_data)
   end
 end
 
-local function onMinedCharger(charger)
-  if(charger.name:find("charge%-transmission%-charger")) then
+local function on_mined_charger(charger)
+  if(charger.name:find("charge%-transmission_charger")) then
     -- remove composite partners
     local data = Entity.get_data(charger)
     for _, slave in pairs(data.composite) do
@@ -239,58 +241,60 @@ local function onMinedCharger(charger)
     Entity.set_data(charger, nil)
 
     -- remove oneself from nodes
-    removeChargerFromNodes(charger)
+    unpair_charger(charger)
   end
 end
 
-local function onRotatedCharger(charger, player)
+local function on_player_rotated_charger(charger, player)
   -- log("rotated charger "..charger.unit_number)
   local charger_data = Entity.get_data(charger)
 
   -- swap charger to the next "node"
-  removeChargerFromNodes(charger)
+  unpair_charger(charger)
 
   local neighbours = charger.logistic_cell.neighbours
-  local new_index = (charger_data.index)%(#neighbours) + 1
-  -- log("#: "..charger_data.index.."->"..new_index)
-  -- log("id: "..neighbours[charger_data.index].owner.unit_number.."->"..neighbours[new_index].owner.unit_number)
-  charger_data.index = new_index
-  charger_data.cell = neighbours[new_index]
-  Entity.set_data(charger, charger_data)
-  registerCharger(charger, neighbours[new_index])
+  if next(neighbours) then
+    local new_index = (charger_data.index)%(#neighbours) + 1
+    -- log("#: "..charger_data.index.."->"..new_index)
+    -- log("id: "..neighbours[charger_data.index].owner.unit_number.."->"..neighbours[new_index].owner.unit_number)
+    charger_data.index = new_index
+    charger_data.cell = neighbours[new_index]
+    -- Entity.set_data(charger, charger_data)
+    pair_charger(charger, neighbours[new_index])
 
-  -- update arrow
-  charger_data = Entity.get_data(charger)
-  player.set_gui_arrow{type="entity", entity=charger_data.cell.owner}
+    -- update arrow
+    charger_data = Entity.get_data(charger)
+    player.set_gui_arrow{type="entity", entity=charger_data.cell.owner}
+  end
 end
 
-Event.register(defines.events.on_built_entity, function(event) onBuiltCharger(event.created_entity) end)
-Event.register(defines.events.on_robot_built_entity, function(event) onBuiltCharger(event.created_entity) end)
+Event.register(defines.events.on_built_entity, function(event) on_built_charger(event.created_entity) end)
+Event.register(defines.events.on_robot_built_entity, function(event) on_built_charger(event.created_entity) end)
 
-Event.register(defines.events.on_player_mined_entity, function(event) onMinedCharger(event.entity) end)
-Event.register(defines.events.on_robot_mined_entity, function(event) onMinedCharger(event.entity) end)
+Event.register(defines.events.on_player_mined_entity, function(event) on_mined_charger(event.entity) end)
+Event.register(defines.events.on_robot_mined_entity, function(event) on_mined_charger(event.entity) end)
 
 Event.register(defines.events.on_player_rotated_entity, function(event)
-  if(event.entity.name:find("charge%-transmission%-charger%-transmitter")) then
+  if(event.entity.name:find("charge%-transmission_charger%-transmitter")) then
     local data = Entity.get_data(event.entity)
     local charger = data.main
     local player = game.players[event.player_index]
 
-    onRotatedCharger(charger, player)
+    on_player_rotated_charger(charger, player)
   end
 end)
 
 Event.register(defines.events.on_selected_entity_changed, function(event)
   local player = game.players[event.player_index]
   local current_entity = player.selected
-  if current_entity and current_entity.name:match("charge%-transmission%-charger%-transmitter") then
+  if current_entity and current_entity.name:match("charge%-transmission_charger%-transmitter") then
     local data = Entity.get_data(current_entity)
     data = Entity.get_data(data.main)
 
     if data.cell and data.cell.valid then
       player.set_gui_arrow{type="entity", entity=data.cell.owner}
     end
-  elseif event.last_entity and event.last_entity.name:match("charge%-transmission%-charger") then
+  elseif event.last_entity and event.last_entity.name:match("charge%-transmission_charger") then
     player.clear_gui_arrow()
   end
 end)
@@ -304,15 +308,16 @@ end)
 -- *  move stuff to pairs()
 -- ✓? add more .valid checks
 script.on_event(defines.events.on_tick, function(event)
+
   -- charger re-pairing every 5 seconds
   for cid=1+event.tick%300,#unpaired,300 do
     local charger = unpaired[cid]
     if charger and charger.valid then
       local data = Entity.get_data(charger)
-      data.index, data.cell = findNeighbourCells(charger)
+      data.cell, data.index = get_closest_cell(charger)
       Entity.set_data(charger, data)
       if data.cell then
-        registerCharger(charger, data.cell)
+        pair_charger(charger, data.cell)
         table.remove(unpaired, cid)
       end
     else
@@ -323,8 +328,8 @@ script.on_event(defines.events.on_tick, function(event)
   -- before iterating nodes...
   if event.tick%60 == 0 then
     -- clear registered bots
-    global.ChargeTransmission.is_refilled_bot = {}
-    is_done = global.ChargeTransmission.is_refilled_bot
+    global.is_charged = {}
+    is_charged = global.is_charged
 
     -- clear invalid nodes
     for nid=#nodes,1,-1 do
@@ -395,13 +400,13 @@ script.on_event(defines.events.on_tick, function(event)
         local bot
         if bid <= #constrobots then bot = constrobots[bid]
         else bot = logibots[bid - #constrobots] end
-        local max_energy = bot_names[bot.name]
+        local max_energy = bot_max[bot.name]
 
-        if bot and max_energy and not(is_done[bot.unit_number]) then
+        if bot and max_energy and not(is_charged[bot.unit_number]) then
           cost = cost + (max_energy - bot.energy) * 1.5
           if cost < energy then
             bot.energy = max_energy
-            is_done[bot.unit_number] = true
+            is_charged[bot.unit_number] = true
             -- bots = bots + 1
           else break end
         end

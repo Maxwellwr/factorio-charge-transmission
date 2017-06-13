@@ -3,7 +3,7 @@ Bot charger: Recharges bots on the closest roboport's area coverage
 --]]
 
 local Color = require "stdlib/color/color"
-local Prototype = require "libs/prototype"
+local Prototype = require "stdlib/prototype/prototype"
 
 local icon = {{icon = "__base__/graphics/icons/beacon.png", tint = Color.from_hex("#00bbee")}}
 
@@ -24,7 +24,7 @@ local entity_warning = {
     priority = "extra-high",
     width = 100,
     height = 100,
-    filename = "__ChargeTransmission__/graphics/capped-out-icon.png",
+    filename = "__ChargeTransmission__/graphics/overtaxed-icon.png",
     scale = 0.5,
     flags = { "icon" },
   }}

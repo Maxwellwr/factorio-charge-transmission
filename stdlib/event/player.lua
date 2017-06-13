@@ -38,7 +38,7 @@ end
 function Player.get(index)
     fail_if_missing(index, 'Missing index to retrieve')
 
-    return game.players[index], global.players[index] or Player.init(index) and global.players[index]
+    return game.players[index], global.players[index] or (Player.init(index) and global.players[index])
 end
 
 --- Merge a copy of the passed data to all players in global.players
