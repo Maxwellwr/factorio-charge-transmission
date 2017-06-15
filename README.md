@@ -18,7 +18,7 @@ Enter the **Bot Charger**, the only (for now?) entity added by this mod, which w
 0. Research Charge Transmission;
 1. Place **Bot Charger** near the desired roboport;
    - Reassign the target, if necessary, by selecting its antenna and rotating it (pressing <kbd>R</kbd>);
-2. You're done.
+1. You're done.
 
 From now on, the charger will scan over that roboport's *construction range* and recharge any bots inside it every second or so.
 
@@ -73,14 +73,18 @@ Well, chargers don't have any particle effects, by design (lag, ya know) to warn
 If you're sure a charger is out of commission (bots still charging around the roboport rather frequently), the likely reasons are:
 
 1. Charger isn't paired to any roboport
-2. Energy supply isn't enough to keep the charger powered up
-3. Charger is overtaxed (see next question)
+1. Energy supply isn't enough to keep the charger powered up
+1. Charger is overtaxed (see next question)
 
 For the first one, hover your mouse over the charger's antenna and see if it points to any roboport. If not, pick and place the charger on a more suitable (closer) place.
 
 The second and third issues are usually telegraphed in-game by alerts (the custom orange alert indicates overtaxing, specifically, see the next question for more details). To verify this, check the electricity values on the sidebar, both the main body AND the antenna must be on the green to be functioning properly. If not, try increasing the power supply or adding more chargers.
 
 If it is something else, please submit a bug report. ~~That includes having a more intuitive symbol for the overtaxing alert, it's weird there's no suitable standard iconography that I could find.~~
+
+### How does LuaForce::worker_robots_battery_modifier affect chargers
+
+In short, it does not. As of right now (0.15.20), the force-specific modifier only changes a bot's initial energy. A charger will refill a bot to its maximum, leaving it alone if it's overcharged (if the modifier is positive), and charge it right up to max if it isn't (negative modifier).
 
 ### I found a bug! Please fix it
 
