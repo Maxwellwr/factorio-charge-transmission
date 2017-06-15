@@ -5,42 +5,7 @@ local Position = require "stdlib/area/position"
 local Entity = require "stdlib/entity/entity"
 require "stdlib/event/event"
 
-MOD = {config = {}}
-MOD.config.quickstart = {
-    mod_name = "ChargeTransmission",
-    clear_items = true,
-    power_armor = "power-armor-mk2",
-    equipment = {
-        "creative-mode_super-fusion-reactor-equipment",
-        "personal-roboport-mk2-equipment",
-        "belt-immunity-equipment"
-    },
-    starter_tracks = true,
-    destroy_everything = true,
-    disable_rso_starting = true,
-    disable_rso_chunk = true,
-    floor_tile = "lab-dark-1",
-    floor_tile_alt = "lab-dark-2",
-    ore_patches = true,
-    make_train = true,
-    area_box = {{-250, -250}, {250, 250}},
-    chunk_bounds = true,
-    center_map_tag = true,
-    setup_power = true,
-    stacks = {
-        "construction-robot",
-    },
-    quickbar = {
-        "picker-tape-measure",
-        "creative-mode_item-source",
-        "creative-mode_fluid-source",
-        "creative-mode_energy-source",
-        "creative-mode_super-substation",
-        "creative-mode_magic-wand-modifier",
-        "creative-mode_super-roboport",
-        "charge-transmission_charger"
-    }
-}
+MOD = {config = {quickstart = require "quickstart-config"}}
 require "stdlib/debug/quickstart"
 
 local nodes, counters, new_nodes, is_charged, unpaired, bot_max
@@ -65,11 +30,7 @@ end
 -- Automatically blacklists chargeless robots (Creative Mode, Nuclear/Fusion Bots, ...)
 local function is_chargeable_bot(proto)
   -- Creative Mode; Nuclear Robots; Jamozed's Fusion Robots
-  if proto.energy_per_tick == 0 and proto.energy_per_move == 0 then return false end
-  -- (use case without known mods that haven't already matched previously)
-  if proto.speed_multiplier_when_out_of_energy >= 1 then return false end
-
-  return true
+  return (proto.energy_per_tick > 0 or proto.energy_per_move > 0) and proto.speed_multiplier_when_out_of_energy < 1
 end
 
 local function set_chargeable_bots()
@@ -316,7 +277,7 @@ script.on_event(defines.events.on_tick, function(event)
   counters.uid, next_charger = next(unpaired, counters.uid)
   -- print("on_tick:unpair:"..(counters.uid or "nil")..":"..((next_charger and next_charger.valid and next_charger.unit_number) or "nil"))
   if next_charger then
-    if next_charger and next_charger.valid then
+    if next_charger.valid then
       local data = Entity.get_data(next_charger)
       data.cell, data.index = get_closest_cell(next_charger)
       -- Entity.set_data(unpaired_charger, data)

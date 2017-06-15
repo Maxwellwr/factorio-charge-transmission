@@ -22,7 +22,7 @@ Enter the **Bot Charger**, the only (for now?) entity added by this mod, which w
 
 From now on, the charger will scan over that roboport's *construction range* and recharge any bots inside it every second or so.
 
-Chargers connected to the same roboport will share the load between themselves; this is important as each charger has a limited energy input ammount and can only fulfill so many robots (see overtaxing below).
+Chargers connected to the same roboport will share the load between themselves; this is important as each charger has a limited energy input amount and can only fulfill so many robots (see overtaxing below).
 
 ### Reassigning a target roboport
 
@@ -41,7 +41,7 @@ E(bot) = drain + speed * movement cost * worker speed bonus
 ```
 
 - *Drain* and *movement cost* can be gathered from a robot's tooltip, they're the `3kW + 5kJ/m`, respectively.
-- *Worker speed bonus* can be found from the Bonuses tab (warning: `+300%` would mean the bonus is `400%`).
+- *Worker speed bonus* can be found from the Bonuses tab (warning: `+300%` would mean the total is `400%`).
 - *Speed* isn't directly said ingame but for vanilla it's `3m/s` for logistic robots and `3.6m/s` for construction robots.
 
 This means that the more *Worker Robot Speed* research obtained the higher a bot's energy maintenance will be, and that construction robots are always slightly more power hungry.
@@ -73,16 +73,16 @@ Well, chargers don't have any particle effects, by design (lag, ya know) to warn
 If you're sure a charger is out of commission (bots still charging around the roboport rather frequently), the likely reasons are:
 
 1. Charger isn't paired to any roboport
+1. Charger is overtaxed (orange alert)
 1. Energy supply isn't enough to keep the charger powered up
-1. Charger is overtaxed (see next question)
 
 For the first one, hover your mouse over the charger's antenna and see if it points to any roboport. If not, pick and place the charger on a more suitable (closer) place.
 
-The second and third issues are usually telegraphed in-game by alerts (the custom orange alert indicates overtaxing, specifically, see the next question for more details). To verify this, check the electricity values on the sidebar, both the main body AND the antenna must be on the green to be functioning properly. If not, try increasing the power supply or adding more chargers.
+The second and third issues are usually telegraphed in-game by alerts. To verify this, check the electricity values on the sidebar, both the main body AND the antenna must be on the green to be functioning properly. If not, try increasing the power supply or adding more chargers.
 
 If it is something else, please submit a bug report. ~~That includes having a more intuitive symbol for the overtaxing alert, it's weird there's no suitable standard iconography that I could find.~~
 
-### How does LuaForce::worker_robots_battery_modifier affect chargers
+### How does LuaForce::worker\_robots\_battery\_modifier affect chargers
 
 In short, it does not. As of right now (0.15.20), the force-specific modifier only changes a bot's initial energy. A charger will refill a bot to its maximum, leaving it alone if it's overcharged (if the modifier is positive), and charge it right up to max if it isn't (negative modifier).
 

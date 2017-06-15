@@ -18,7 +18,7 @@ local entity_warning = {
   collision_box = {{-0.8, -0.8}, {0.8, 0.8}},
   selection_box = {{-0.5, -0.5}, {0.5, 0.5}},
   pictures = {
-    Prototype.empty_sprite(), 
+    Prototype.empty_sprite(),
     Prototype.empty_sprite(),
   {
     priority = "extra-high",
