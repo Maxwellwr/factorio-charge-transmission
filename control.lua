@@ -348,10 +348,11 @@ script.on_event(defines.events.on_tick, function(event)
   local max
   -- log(counters.done_nodes)
   -- print((5-#nodes%5)%5)
-  if event.tick%60 == 59 then max = -1 -- Damage control, does ALL remaining nodes in the end until you nil
+  if event.tick%60 == 59 then max = math.huge -- Damage control, does ALL remaining nodes in the end until you nil
   elseif event.tick%60 >= (60-#nodes%60)%60 then max = math.ceil(#nodes/60) -- separates the nodes over 60 seconds
   else max = math.floor(#nodes/60) end
   -- max = math.ceil(#nodes/5)
+  -- print(counters.nid)
 
   while counters.nid and iter < max do
     local node = nodes[counters.nid]
