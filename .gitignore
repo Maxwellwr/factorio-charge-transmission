@@ -44,3 +44,4 @@ luac.out
 
 # Graphics
 graphics/**/*.svg
+graphics/.icon/icon.png
