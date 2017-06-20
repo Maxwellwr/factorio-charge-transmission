@@ -1,0 +1,14 @@
+{
+  "item":
+  [
+    ["charge-transmission-charger", "charge-transmission_charger"]
+  ],
+  "recipe":
+  [
+    ["charge-transmission-charger", "charge-transmission_charger"]
+  ],
+  "technology":
+  [
+    ["charge-transmission-charger", "charge-transmission_charger"]
+  ]
+}
