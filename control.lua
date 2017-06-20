@@ -61,15 +61,27 @@ end)
 script.on_load(function ()
   -- nodes = global.nodes
   init_global(true)
-
-  local metanodes = {}
-  function metanodes.__len(_) return counters.nodes end
-
-  setmetatable(nodes, metanodes)
+  if nodes then
+    local metanodes = {}
+    function metanodes.__len(_) return counters.nodes end
+    setmetatable(nodes, metanodes)
+  end
 end)
 
-script.on_configuration_changed(function ()
+script.on_configuration_changed(function(event)
   set_chargeable_bots()
+  log(serpent.block(event.mod_changes))
+  if event.mod_changes["ChargeTransmission"] then
+    local ct = event.mod_changes["ChargeTransmission"]
+    if ct.old_version and ct.old_version:match("^0%.1") then
+      global.ChargeTransmission = nil
+      init_global() -- Reset internal savedata
+
+      local metanodes = {}
+      function metanodes.__len(_) return counters.nodes end
+      setmetatable(nodes, metanodes) -- add missing metatable
+    end
+  end
 end)
 
 
