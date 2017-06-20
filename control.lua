@@ -70,7 +70,6 @@ end)
 
 script.on_configuration_changed(function(event)
   set_chargeable_bots()
-  log(serpent.block(event.mod_changes))
   if event.mod_changes["ChargeTransmission"] then
     local ct = event.mod_changes["ChargeTransmission"]
     if ct.old_version and ct.old_version:match("^0%.1") then
