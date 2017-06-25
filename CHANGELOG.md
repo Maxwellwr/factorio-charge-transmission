@@ -30,5 +30,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/). Mostly.
 - Custom overtaxing
 - README as mod documentation
 
-[Unreleased]: https://github.com/dustine/ChargeTransmission/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/dustine/ChargeTransmission/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/dustine/ChargeTransmission/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/dustine/ChargeTransmission/compare/v0.3.0...v0.3.1
