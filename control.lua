@@ -6,7 +6,7 @@ local Entity = require "stdlib/entity/entity"
 require "stdlib/event/event"
 
 MOD = {config = {quickstart = require "quickstart-config"}}
-require "stdlib/debug/quickstart"
+-- require "stdlib/debug/quickstart"
 
 local nodes, counters, new_nodes, is_charged, unpaired, bot_max
 local function init_global(is_load)

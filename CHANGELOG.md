@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/). Mostly.
 
 ## [Unreleased]
 
+## [0.3.2] - 2017-06-25
+### Changed
+- More referrals in README (issue reporters and forum thread)
+### Fixed
+- Disabled debug world creation
+
 ## [0.3.1] - 2017-06-20
 ### Added
 - Changelog

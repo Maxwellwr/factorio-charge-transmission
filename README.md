@@ -90,7 +90,7 @@ In short, it does not. As of right now (0.15.20), the force-specific modifier on
 
 Sure! But I'll need a bug report for it. Describing what you were doing (+ steps to replicate the issue), what other mods you have installed, what version of this mod you have and if possible, sending me your bugged savegame. All these steps will make your issue much easier to diagnose and to be fixed.
 
-***DO NOT post your bug report here on the mod portal***, as it doesn't notify the mod maintainers about new posts or replies so it may take literal weeks for stuff to be noticed. Please, *please*, use the forum thread or github repo to make your bug report.
+***DO NOT post your bug report here on the mod portal***, as it doesn't notify the mod maintainers about new posts or replies so it may take literal weeks for stuff to be noticed. Please, *please*, use the [forum thread](https://forums.factorio.com/viewtopic.php?f=97&t=49853) or [github repo](https://github.com/dustine/ChargeTransmission/issues) to make your bug report.
 
 ## Credits
 
