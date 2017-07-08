@@ -9,9 +9,9 @@ local icon = {{icon = "__base__/graphics/icons/beacon.png", tint = Color.from_he
 
 local entity_warning = {
   type = "simple-entity",
-  name = "charge-transmission_charger-warning",
+  name = "charge-transmission_bots-warning",
   render_layer = "entity-info-icon",
-  icon = "__ChargeTransmission__/graphics/entities/charger/transmitter-icon.png",
+  icon = "__ChargeTransmission__/graphics/entities/charger/bots/transmitter-icon.png",
   flags = {"not-on-map"},
   selectable_in_game = false,
   collision_mask = {},
@@ -32,8 +32,8 @@ local entity_warning = {
 
 local entity_transmitter = {
   type = "electric-energy-interface",
-  name = "charge-transmission_charger-transmitter",
-  icon = "__ChargeTransmission__/graphics/entities/charger/transmitter-icon.png",
+  name = "charge-transmission_bots-transmitter",
+  icon = "__ChargeTransmission__/graphics/entities/charger/bots/transmitter-icon.png",
   flags = {"player-creation", "not-on-map"},
   render_layer = "higher-object-above",
   collision_mask = {},
@@ -69,12 +69,12 @@ local entity_transmitter = {
 local entity_interface = {
   rotate = true,
   type = "roboport",
-  name = "charge-transmission_charger-interface",
+  name = "charge-transmission_bots-interface",
   -- TODO: better icon for the interface?
   icons = icon,
   flags = {"not-on-map", "placeable-player", "player-creation"},
   corpse = "medium-remnants",
-  minable = {hardness = 0.2, mining_time = 0.5, result = "charge-transmission_charger"},
+  minable = {hardness = 0.2, mining_time = 0.5, result = "charge-transmission_bots"},
   collision_box = {{-0.8, -0.8}, {0.8, 0.8}},
   selection_box = {{-1, -1}, {1, 1}},
   drawing_box = {{-1, -1.5}, {1, 0.5}},
@@ -154,20 +154,20 @@ local entity_interface = {
 
 local item = {
   type = "item",
-  name = "charge-transmission_charger",
-  localized_name = {"item-name.charge-transmission_charger"},
-  icon = "__ChargeTransmission__/graphics/entities/charger/transmitter-icon.png",
+  name = "charge-transmission_bots",
+  localized_name = {"item-name.charge-transmission_bots"},
+  icon = "__ChargeTransmission__/graphics/entities/charger/bots/transmitter-icon.png",
   flags = {"goes-to-quickbar"},
   subgroup = "logistic-network",
   order = "c[signal]-a[roboport]",
-  place_result = "charge-transmission_charger-interface",
+  place_result = "charge-transmission_bots-interface",
   stack_size = 20
 }
 
 local recipe = {
   type = "recipe",
-  name = "charge-transmission_charger",
-  localized_name = {"item-name.charge-transmission_charger"},
+  name = "charge-transmission_bots",
+  localized_name = {"item-name.charge-transmission_bots"},
   enabled = false,
   energy_required = 15,
   ingredients =
@@ -177,35 +177,7 @@ local recipe = {
     {"processing-unit", 10},
     {"battery", 20},
   },
-  result = "charge-transmission_charger"
+  result = "charge-transmission_bots"
 }
 
-local technology = {
-  type = "technology",
-  name = "charge-transmission_charger",
-  icon = "__ChargeTransmission__/graphics/entities/charger/technology.png",
-  icon_size = 128,
-  effects =
-  {
-    {
-      type = "unlock-recipe",
-      recipe = "charge-transmission_charger"
-    }
-  },
-  prerequisites = {"effect-transmission", "robotics", "effectivity-module-3"},
-  unit =
-  {
-    count = 200,
-    ingredients =
-    {
-      {"science-pack-1", 1},
-      {"science-pack-2", 1},
-      {"science-pack-3", 1},
-      {"high-tech-science-pack", 2}
-    },
-    time = 30
-  },
-  order = "i-i"
-}
-
-data:extend{entity_warning, entity_transmitter, entity_interface, item, recipe, technology}
+data:extend{entity_warning, entity_transmitter, entity_interface, item, recipe}
