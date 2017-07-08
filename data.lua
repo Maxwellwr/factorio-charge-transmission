@@ -1,1 +1,1 @@
-require "prototypes.entities.charger"
+require "prototypes.entities.bots"
