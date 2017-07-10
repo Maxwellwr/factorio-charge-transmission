@@ -8,11 +8,15 @@ require "stdlib/event/event"
 MOD = {config = {quickstart = require "scripts/quickstart-config"}}
 require "stdlib/debug/quickstart"
 
-local nodes, counters, new_nodes, is_charged, unpaired, bot_max
+local nodes, counters, pchargers, new_nodes, is_charged, unpaired, bot_max
 local function init_global(is_load)
   if not is_load then
     global.nodes = global.nodes or {}
-    global.counters = global.counters or {nid = nil, nodes = 0, uid = nil}
+    global.pchargers = global.pchargers or {}
+    global.counters = global.counters or {
+      nid = nil, pcid = nil, uid = nil,
+      nodes = 0, pchargers = 0
+    }
     global.new_nodes = global.new_nodes or {}
     global.is_charged = global.is_charged or {}
     global.unpaired = global.unpaired or {}
@@ -20,6 +24,7 @@ local function init_global(is_load)
   end
 
   nodes = global.nodes
+  pchargers = global.pchargers
   counters = global.counters
   new_nodes = global.new_nodes
   is_charged = global.is_charged
@@ -57,29 +62,15 @@ script.on_init(function ()
   set_chargeable_bots()
 end)
 
--- local nodes
 script.on_load(function ()
-  -- nodes = global.nodes
   init_global(true)
-  if nodes then
-    local metanodes = {}
-    function metanodes.__len(_) return counters.nodes end
-    setmetatable(nodes, metanodes)
-  end
 end)
 
 script.on_configuration_changed(function(event)
   set_chargeable_bots()
   if event.mod_changes["ChargeTransmission"] then
     local ct = event.mod_changes["ChargeTransmission"]
-    if ct.old_version and ct.old_version:match("^0%.1") then
-      global.ChargeTransmission = nil
-      init_global() -- Reset internal savedata
-
-      local metanodes = {}
-      function metanodes.__len(_) return counters.nodes end
-      setmetatable(nodes, metanodes) -- add missing metatable
-    end
+    -- TODO: Symver-respecting upgrade chain
   end
 end)
 
@@ -132,7 +123,7 @@ end
 --  Tries to find the closest logistic cell (roboport) and register it
 --   Else, adds it as an unpaired charger
 local function on_built_charger(entity)
-  if(entity.name:find("charge%-transmission_bots")) then
+  if entity.name:find("charge%-transmission_bots") then
     local transmitter = entity.surface.create_entity{
       name = "charge-transmission_bots-transmitter",
       position = entity.position,
@@ -140,6 +131,7 @@ local function on_built_charger(entity)
     }
     transmitter.destructible = false
     Entity.set_data(transmitter, {main = entity})
+
     local warning = entity.surface.create_entity{
       name = "charge-transmission_bots-warning",
       position = entity.position,
@@ -152,11 +144,25 @@ local function on_built_charger(entity)
     Entity.set_data(entity, data)
     -- print("created unpaired charger "..entity.unit_number)
     unpaired[entity.unit_number] = entity
+  elseif entity.name:find("charge%-transmission_players") then
+    local transmitter = entity.surface.create_entity{
+      name = "charge-transmission_players-transmitter",
+      position = entity.position,
+      force = entity.force
+    }
+    transmitter.destructible = false
+    Entity.set_data(transmitter, {main = entity})
+
+    local data = {transmitter = transmitter}
+    Entity.set_data(entity, data)
+
+    pchargers[entity.unit_number] = entity
+    counters.pchargers = counters.pchargers + 1
   end
 end
 
 -- Removes a charger from a node, if it's there (complexity for debug purposes)
-local function remove_charger(charger, node)
+local function remove_bot_charger(charger, node)
   if node.chargers[charger.unit_number] then
     node.chargers[charger.unit_number] = nil
     -- print("removed charger "..charger.unit_number.." from node "..node.id)
@@ -164,30 +170,30 @@ local function remove_charger(charger, node)
 end
 
 -- Unpairs a charger (removes it from its linked node, or all if that node's invalid)
-local function unpair_charger(charger)
+local function unpair_bot_charger(charger)
   local data = Entity.get_data(charger) or {}
   local node = find_node(data.cell)
   if data and data.cell then data.cell = nil end
 
   if node then
     -- known node, remove only from that one
-    remove_charger(charger, node)
+    remove_bot_charger(charger, node)
     return
   else
     -- unknown node, remove from all valid nodes
     for _, n in pairs(nodes) do
-      remove_charger(charger, n)
+      remove_bot_charger(charger, n)
     end
     -- and from all reserved new nodes
     for _, n in pairs(new_nodes) do
-      remove_charger(charger, n)
+      remove_bot_charger(charger, n)
     end
   end
   -- print("unpaired charger "..charger.unit_number)
 end
 
 local function on_mined_charger(charger)
-  if(charger.name:find("charge%-transmission_bots")) then
+  if charger.name:find("charge%-transmission_bots") then
     -- remove composite partners
     local data = Entity.get_data(charger)
     if data.transmitter and data.transmitter.valid then data.transmitter.destroy() end
@@ -197,18 +203,22 @@ local function on_mined_charger(charger)
     Entity.set_data(charger, nil)
 
     -- remove oneself from nodes
-    unpair_charger(charger)
+    unpair_bot_charger(charger)
+  elseif charger.name:find("charge%-transmission_players") then
+    local data = Entity.get_data(charger)
+    if data.transmitter and data.transmitter.valid then data.transmitter.destroy() end
   end
 end
 
 -- Registers a charger, placing it on its rightful node (or creating a new one)
 -- Warning: does not update the charger entity's data to point at the cell
-local function pair_charger(charger, cell)
+local function pair_bot_charger(charger, cell)
   local node = find_node(cell)
   if not node then
     -- new node
     node = {cell = cell, chargers = {}, id = cell.owner.unit_number}
-    node.area = Position.expand_to_area(node.cell.owner.position, node.cell.construction_radius)
+
+    node.area = Position.expand_to_area(node.cell.owner.position, math.max(node.cell.construction_radius, node.cell.logistic_radius))
     -- register the node
     table.insert(new_nodes, node)
     -- print("new node "..node.id.." for cell "..cell.owner.unit_number)
@@ -219,12 +229,12 @@ local function pair_charger(charger, cell)
   return node
 end
 
-local function on_player_rotated_charger(charger, player)
+local function on_player_rotated_bot_charger(charger, player)
   -- print("rotated charger "..charger.unit_number)
   local data = Entity.get_data(charger)
 
   -- swap charger to the next "node"
-  unpair_charger(charger)
+  unpair_bot_charger(charger)
 
   local neighbours = charger.logistic_cell.neighbours
   if next(neighbours) then
@@ -234,7 +244,7 @@ local function on_player_rotated_charger(charger, player)
     data.index = new_index
     data.cell = neighbours[new_index]
     -- Entity.set_data(charger, data)
-    pair_charger(charger, neighbours[new_index])
+    pair_bot_charger(charger, neighbours[new_index])
 
     -- update arrow
     player.set_gui_arrow{type="entity", entity=neighbours[new_index].owner}
@@ -255,7 +265,7 @@ Event.register(defines.events.on_player_rotated_entity, function(event)
     local charger = data.main
     local player = game.players[event.player_index]
 
-    on_player_rotated_charger(charger, player)
+    on_player_rotated_bot_charger(charger, player)
   end
 end)
 
@@ -275,11 +285,7 @@ Event.register(defines.events.on_selected_entity_changed, function(event)
 end)
 
 -- TODO: Optimize this, make it squeaky clean
--- ✓  change the architecture so roboports are the grouping element, not the charger so that grouped-together chargers "share the burden"
---    (also solves the issue of a charger having only so much input current)
--- ✓  abstract the robot types to a setting which auto-updates to just save the name and max energy
 -- *  code check
--- ✓  move stuff to pairs()
 -- *  add more .valid checks
 script.on_event(defines.events.on_tick, function(event)
 
@@ -293,7 +299,7 @@ script.on_event(defines.events.on_tick, function(event)
       data.cell, data.index = get_closest_cell(next_charger)
       -- Entity.set_data(unpaired_charger, data)
       if data.cell then
-        pair_charger(next_charger, data.cell)
+        pair_bot_charger(next_charger, data.cell)
         unpaired[next_charger.unit_number] = nil
       end
     else
@@ -343,31 +349,41 @@ script.on_event(defines.events.on_tick, function(event)
           end
         end
         nodes[key] = nil
-        counters.nodes = counters.nodes - 1
+        -- counters.nodes = counters.nodes - 1
         -- print("removed node "..node.id)
-        -- print(#nodes)
+        -- print(table_size(nodes))
       end
     end
+    counters.nodes = table_size(nodes)
+
+    -- clear invalid player chargers
+    for key, charger in pairs(pchargers) do
+      if not charger.valid then
+        pchargers[key] = nil
+      end
+    end
+    counters.pchargers = table_size(pchargers)
 
     -- seed the next iter
     counters.nid = next(nodes)
+    counters.pcid = next(pchargers)
   end
 
   -- area scanning
   -- TODO: add +1 so it always does the non-tick one
   local iter = 0
+  local count = counters.nodes
   local max
   -- log(counters.done_nodes)
-  -- print((5-#nodes%5)%5)
+  -- print((5-counters.nodes%5)%5)
   if event.tick%60 == 59 then max = math.huge -- Damage control, does ALL remaining nodes in the end until you nil
-  elseif event.tick%60 >= (60-#nodes%60)%60 then max = math.ceil(#nodes/60) -- separates the nodes over 60 seconds
-  else max = math.floor(#nodes/60) end
-  -- max = math.ceil(#nodes/5)
+  elseif event.tick%60 >= (60-count%60)%60 then max = math.ceil(count/60) -- separates the nodes over 60 seconds
+  else max = math.floor(count/60) end
+  -- max = math.ceil(counters.nodes/5)
   -- print(counters.nid)
 
   while counters.nid and iter < max do
     local node = nodes[counters.nid]
-    -- TODO: move stuff of tick 0 over here and make it call next again
     iter = iter + 1
     -- print(event.tick..": processing node "..node.id.." | "..iter.." of "..max.." in "..#nodes)
 
@@ -462,6 +478,57 @@ script.on_event(defines.events.on_tick, function(event)
 
     counters.nid = next(nodes, counters.nid)
     -- print("next node: "..serpent.block(counters.nid))
+  end
+
+  -- player scanning
+  -- same logic as above
+  iter = 0
+  count = counters.pchargers
+  if event.tick%60 == 59 then max = math.huge
+  elseif event.tick%60 >= (60-count%60)%60 then max = math.ceil(count/60)
+  else max = math.floor(count/60) end
+
+  while counters.pcid and iter < max do
+    local charger = pchargers[counters.pcid]
+    iter = iter + 1
+
+    if charger and charger.valid then
+      local network = charger.logistic_network
+      local transmitter = Entity.get_data(charger).transmitter
+      if network and transmitter and transmitter.valid then
+        local cost = 0
+        local energy = transmitter.energy
+
+        -- fetch all requesters on network, which include... players!
+        for _, player in pairs(network.requesters) do
+          local armors = player.get_inventory(defines.inventory.player_armor) or {}
+          for aid=1,#armors do
+            local armor = armors[aid]
+            local grid = armor.grid
+            if grid then
+              for k, equipment in pairs(grid.equipment) do
+                -- precalculate need so to be able to add partial energy recharges
+                local need = equipment.max_energy - equipment.energy
+                if cost + need < energy then
+                  equipment.energy = equipment.max_energy
+                  cost = cost + need
+                else
+                  equipment.energy = equipment.energy + (energy - cost)
+                  cost = energy
+                  -- leave the whole for-loop block
+                  goto finished
+                end
+              end
+            end
+          end
+        end
+        ::finished::
+        transmitter.power_usage = cost / 60
+
+      end
+    end
+
+    counters.pcid = next(pchargers, counters.pcid)
   end
 
   -- displays the blinking custom warning for overtaxing

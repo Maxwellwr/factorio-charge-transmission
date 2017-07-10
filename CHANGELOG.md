@@ -5,13 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/). Mostly.
 
+<!-- markdownlint-disable MD022 MD024 MD032 -->
+
 ## [Unreleased]
 ### Added
-- Description on bot charger hints at rotating mechanic
+- Player chargers (MISSING DOCUMENTATION, OPTIMIZATION)
+- Description on bot charger, to hint at rotating mechanic
 ### Changed
 - Remade the overtaxed graphic to be more intuitive and in line with the new warning basegame design
 - Made bot chargers respect `worker_robots_battery_modifier`
 - Renamed all chargers to bot chargers
+### Fixed
+- Fixed crash if node was added to a roboport with a 0-width construction area
 
 ## [0.3.2] - 2017-06-25
 ### Changed

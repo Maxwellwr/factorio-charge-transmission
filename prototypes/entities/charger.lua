@@ -12,15 +12,15 @@ local technology = {
       type = "unlock-recipe",
       recipe = "charge-transmission_bots"
     },
-    -- {
-    --   type = "unlock-recipe",
-    --   recipe = "charge-transmission_players"
-    -- }
+    {
+      type = "unlock-recipe",
+      recipe = "charge-transmission_players"
+    }
   },
   prerequisites = {"effect-transmission", "robotics", "effectivity-module-3"},
   unit =
   {
-    count = 200,
+    count = 250,
     ingredients =
     {
       {"science-pack-1", 1},
