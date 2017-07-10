@@ -101,4 +101,4 @@ Special thanks to:
 - Nexela for general code help and workarounds
 - [KatherineOfSkies](https://www.youtube.com/channel/UCTIV3KbAvaGEyNjoMoNaGtQ/) for her friendly and welcoming community
 
-This mod contains graphics adapted from the icons made by [Roundicons](http://www.flaticon.com/authors/roundicons) from [www.flaticon.com](http://www.flaticon.com)  under a [CC 3.0 BY](http://creativecommons.org/licenses/by/3.0/) license.
+This mod contains graphics adapted from the icons made by [Roundicons](http://www.flaticon.com/authors/roundicons) and [Gregor Cresnar](http://www.flaticon.com/authors/gregor-cresnar) from [www.flaticon.com](http://www.flaticon.com) under a [CC 3.0 BY](http://creativecommons.org/licenses/by/3.0/) license.

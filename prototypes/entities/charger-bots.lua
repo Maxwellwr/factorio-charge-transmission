@@ -22,10 +22,10 @@ local entity_warning = {
     Prototype.empty_sprite(),
   {
     priority = "extra-high",
-    width = 100,
-    height = 100,
+    width = 128,
+    height = 128,
     filename = "__ChargeTransmission__/graphics/overtaxed-icon.png",
-    scale = 0.5,
+    scale = (100/128)/2,
     flags = { "icon" },
   }}
 }

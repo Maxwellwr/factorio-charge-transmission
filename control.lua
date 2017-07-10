@@ -413,11 +413,12 @@ script.on_event(defines.events.on_tick, function(event)
         }
 
         if #constrobots + #logibots > 0 then
+          local modifier = 1 + node.cell.owner.force.worker_robots_battery_modifier
           for bid=1,#constrobots + #logibots do
             local bot
             if bid <= #constrobots then bot = constrobots[bid]
             else bot = logibots[bid - #constrobots] end
-            local max_energy = bot_max[bot.name]
+            local max_energy = bot_max[bot.name] * modifier
 
             if bot and max_energy and bot.energy < max_energy then
               cost = cost + (max_energy - bot.energy) * 1.5
