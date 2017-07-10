@@ -5,7 +5,7 @@ local Position = require "stdlib/area/position"
 local Entity = require "stdlib/entity/entity"
 require "stdlib/event/event"
 
-MOD = {config = {quickstart = require "quickstart-config"}}
+MOD = {config = {quickstart = require "scripts/quickstart-config"}}
 require "stdlib/debug/quickstart"
 
 local nodes, counters, new_nodes, is_charged, unpaired, bot_max
