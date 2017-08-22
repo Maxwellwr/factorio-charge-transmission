@@ -123,9 +123,9 @@ end
 --  Tries to find the closest logistic cell (roboport) and register it
 --   Else, adds it as an unpaired charger
 local function on_built_charger(entity)
-  if entity.name:find("charge%-transmission_bots") then
+  if(entity.name:find("charge%-transmission_charger")) then
     local transmitter = entity.surface.create_entity{
-      name = "charge-transmission_bots-transmitter",
+      name = "charge-transmission_charger-transmitter",
       position = entity.position,
       force = entity.force
     }
@@ -133,7 +133,7 @@ local function on_built_charger(entity)
     Entity.set_data(transmitter, {main = entity})
 
     local warning = entity.surface.create_entity{
-      name = "charge-transmission_bots-warning",
+      name = "charge-transmission_charger-warning",
       position = entity.position,
     }
     warning.destructible = false
@@ -193,7 +193,7 @@ local function unpair_bot_charger(charger)
 end
 
 local function on_mined_charger(charger)
-  if charger.name:find("charge%-transmission_bots") then
+  if(charger.name:find("charge%-transmission_charger")) then
     -- remove composite partners
     local data = Entity.get_data(charger)
     if data.transmitter and data.transmitter.valid then data.transmitter.destroy() end
@@ -260,7 +260,7 @@ Event.register(defines.events.on_player_mined_entity, function(event) on_mined_c
 Event.register(defines.events.on_robot_mined_entity, function(event) on_mined_charger(event.entity) end)
 
 Event.register(defines.events.on_player_rotated_entity, function(event)
-  if(event.entity.name:find("charge%-transmission_bots%-transmitter")) then
+  if(event.entity.name:find("charge%-transmission_charger%-transmitter")) then
     local data = Entity.get_data(event.entity)
     local charger = data.main
     local player = game.players[event.player_index]
@@ -272,14 +272,14 @@ end)
 Event.register(defines.events.on_selected_entity_changed, function(event)
   local player = game.players[event.player_index]
   local current_entity = player.selected
-  if current_entity and current_entity.name:match("charge%-transmission_bots%-transmitter") then
+  if current_entity and current_entity.name:match("charge%-transmission_charger%-transmitter") then
     local data = Entity.get_data(current_entity)
     data = Entity.get_data(data.main)
 
     if data.cell and data.cell.valid then
       player.set_gui_arrow{type="entity", entity=data.cell.owner}
     end
-  elseif event.last_entity and event.last_entity.name:match("charge%-transmission_bots") then
+  elseif event.last_entity and event.last_entity.name:match("charge%-transmission_charger") then
     player.clear_gui_arrow()
   end
 end)

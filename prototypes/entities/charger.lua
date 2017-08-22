@@ -1,5 +1,4 @@
 require "prototypes/entities/charger-bots"
-require "prototypes/entities/charger-players"
 
 local technology = {
   type = "technology",
@@ -11,10 +10,6 @@ local technology = {
     {
       type = "unlock-recipe",
       recipe = "charge-transmission_bots"
-    },
-    {
-      type = "unlock-recipe",
-      recipe = "charge-transmission_players"
     }
   },
   prerequisites = {"effect-transmission", "robotics", "effectivity-module-3"},
