@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/). Mostly.
 
 ## [Unreleased]
 ### Added
-- Player chargers (MISSING DOCUMENTATION, OPTIMIZATION)
 - Description on bot charger, to hint at rotating mechanic
 ### Changed
 - Remade the overtaxed graphic to be more intuitive and in line with the new warning basegame design
