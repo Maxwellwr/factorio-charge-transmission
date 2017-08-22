@@ -147,7 +147,7 @@ local function on_built_charger(entity)
 end
 
 -- Removes a charger from a node, if it's there (complexity for debug purposes)
-local function remove_bot_charger(charger, node)
+local function remove_charger(charger, node)
   if node.chargers[charger.unit_number] then
     node.chargers[charger.unit_number] = nil
     -- print("removed charger "..charger.unit_number.." from node "..node.id)
@@ -155,23 +155,23 @@ local function remove_bot_charger(charger, node)
 end
 
 -- Unpairs a charger (removes it from its linked node, or all if that node's invalid)
-local function unpair_bot_charger(charger)
+local function unpair_charger(charger)
   local data = Entity.get_data(charger) or {}
   local node = find_node(data.cell)
   if data and data.cell then data.cell = nil end
 
   if node then
     -- known node, remove only from that one
-    remove_bot_charger(charger, node)
+    remove_charger(charger, node)
     return
   else
     -- unknown node, remove from all valid nodes
     for _, n in pairs(nodes) do
-      remove_bot_charger(charger, n)
+      remove_charger(charger, n)
     end
     -- and from all reserved new nodes
     for _, n in pairs(new_nodes) do
-      remove_bot_charger(charger, n)
+      remove_charger(charger, n)
     end
   end
   -- print("unpaired charger "..charger.unit_number)
@@ -188,16 +188,13 @@ local function on_mined_charger(charger)
     Entity.set_data(charger, nil)
 
     -- remove oneself from nodes
-    unpair_bot_charger(charger)
-  elseif charger.name:find("charge%-transmission_players") then
-    local data = Entity.get_data(charger)
-    if data.transmitter and data.transmitter.valid then data.transmitter.destroy() end
+    unpair_charger(charger)
   end
 end
 
 -- Registers a charger, placing it on its rightful node (or creating a new one)
 -- Warning: does not update the charger entity's data to point at the cell
-local function pair_bot_charger(charger, cell)
+local function pair_charger(charger, cell)
   local node = find_node(cell)
   if not node then
     -- new node
@@ -214,12 +211,12 @@ local function pair_bot_charger(charger, cell)
   return node
 end
 
-local function on_player_rotated_bot_charger(charger, player)
+local function on_player_rotated_charger(charger, player)
   -- print("rotated charger "..charger.unit_number)
   local data = Entity.get_data(charger)
 
   -- swap charger to the next "node"
-  unpair_bot_charger(charger)
+  unpair_charger(charger)
 
   local neighbours = charger.logistic_cell.neighbours
   if next(neighbours) then
@@ -229,7 +226,7 @@ local function on_player_rotated_bot_charger(charger, player)
     data.index = new_index
     data.cell = neighbours[new_index]
     -- Entity.set_data(charger, data)
-    pair_bot_charger(charger, neighbours[new_index])
+    pair_charger(charger, neighbours[new_index])
 
     -- update arrow
     player.set_gui_arrow{type="entity", entity=neighbours[new_index].owner}
@@ -250,7 +247,7 @@ Event.register(defines.events.on_player_rotated_entity, function(event)
     local charger = data.main
     local player = game.players[event.player_index]
 
-    on_player_rotated_bot_charger(charger, player)
+    on_player_rotated_charger(charger, player)
   end
 end)
 
@@ -284,7 +281,7 @@ script.on_event(defines.events.on_tick, function(event)
       data.cell, data.index = get_closest_cell(next_charger)
       -- Entity.set_data(unpaired_charger, data)
       if data.cell then
-        pair_bot_charger(next_charger, data.cell)
+        pair_charger(next_charger, data.cell)
         unpaired[next_charger.unit_number] = nil
       end
     else
