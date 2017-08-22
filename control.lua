@@ -8,14 +8,14 @@ require "stdlib/event/event"
 MOD = {config = {quickstart = require "scripts/quickstart-config"}}
 require "stdlib/debug/quickstart"
 
-local nodes, counters, pchargers, new_nodes, is_charged, unpaired, bot_max
+local nodes, counters, new_nodes, is_charged, unpaired, bot_max
 local function init_global(is_load)
   if not is_load then
     global.nodes = global.nodes or {}
-    global.pchargers = global.pchargers or {}
     global.counters = global.counters or {
-      nid = nil, pcid = nil, uid = nil,
-      nodes = 0, pchargers = 0
+      nid = nil,
+      uid = nil,
+      nodes = 0
     }
     global.new_nodes = global.new_nodes or {}
     global.is_charged = global.is_charged or {}
@@ -24,7 +24,6 @@ local function init_global(is_load)
   end
 
   nodes = global.nodes
-  pchargers = global.pchargers
   counters = global.counters
   new_nodes = global.new_nodes
   is_charged = global.is_charged
@@ -144,20 +143,6 @@ local function on_built_charger(entity)
     Entity.set_data(entity, data)
     -- print("created unpaired charger "..entity.unit_number)
     unpaired[entity.unit_number] = entity
-  elseif entity.name:find("charge%-transmission_players") then
-    local transmitter = entity.surface.create_entity{
-      name = "charge-transmission_players-transmitter",
-      position = entity.position,
-      force = entity.force
-    }
-    transmitter.destructible = false
-    Entity.set_data(transmitter, {main = entity})
-
-    local data = {transmitter = transmitter}
-    Entity.set_data(entity, data)
-
-    pchargers[entity.unit_number] = entity
-    counters.pchargers = counters.pchargers + 1
   end
 end
 
@@ -356,17 +341,8 @@ script.on_event(defines.events.on_tick, function(event)
     end
     counters.nodes = table_size(nodes)
 
-    -- clear invalid player chargers
-    for key, charger in pairs(pchargers) do
-      if not charger.valid then
-        pchargers[key] = nil
-      end
-    end
-    counters.pchargers = table_size(pchargers)
-
     -- seed the next iter
     counters.nid = next(nodes)
-    counters.pcid = next(pchargers)
   end
 
   -- area scanning
@@ -478,57 +454,6 @@ script.on_event(defines.events.on_tick, function(event)
 
     counters.nid = next(nodes, counters.nid)
     -- print("next node: "..serpent.block(counters.nid))
-  end
-
-  -- player scanning
-  -- same logic as above
-  iter = 0
-  count = counters.pchargers
-  if event.tick%60 == 59 then max = math.huge
-  elseif event.tick%60 >= (60-count%60)%60 then max = math.ceil(count/60)
-  else max = math.floor(count/60) end
-
-  while counters.pcid and iter < max do
-    local charger = pchargers[counters.pcid]
-    iter = iter + 1
-
-    if charger and charger.valid then
-      local network = charger.logistic_network
-      local transmitter = Entity.get_data(charger).transmitter
-      if network and transmitter and transmitter.valid then
-        local cost = 0
-        local energy = transmitter.energy
-
-        -- fetch all requesters on network, which include... players!
-        for _, player in pairs(network.requesters) do
-          local armors = player.get_inventory(defines.inventory.player_armor) or {}
-          for aid=1,#armors do
-            local armor = armors[aid]
-            local grid = armor.grid
-            if grid then
-              for k, equipment in pairs(grid.equipment) do
-                -- precalculate need so to be able to add partial energy recharges
-                local need = equipment.max_energy - equipment.energy
-                if cost + need < energy then
-                  equipment.energy = equipment.max_energy
-                  cost = cost + need
-                else
-                  equipment.energy = equipment.energy + (energy - cost)
-                  cost = energy
-                  -- leave the whole for-loop block
-                  goto finished
-                end
-              end
-            end
-          end
-        end
-        ::finished::
-        transmitter.power_usage = cost / 60
-
-      end
-    end
-
-    counters.pcid = next(pchargers, counters.pcid)
   end
 
   -- displays the blinking custom warning for overtaxing
