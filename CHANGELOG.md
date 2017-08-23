@@ -12,10 +12,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/). Mostly.
 - Description on bot charger, to hint at rotating mechanic
 ### Changed
 - Remade the overtaxed graphic to be more intuitive and in line with the new warning basegame design
+- Bots can be charged more than once a second (less than sucessful optimization removed)
 - Made bot chargers respect `worker_robots_battery_modifier`
-- Renamed all chargers to bot chargers
 ### Fixed
 - Fixed crash if node was added to a roboport with a 0-width construction area
+- Overtaxing now uses the transmitter's power drain limit, not the base's
 
 ## [0.3.2] - 2017-06-25
 ### Changed

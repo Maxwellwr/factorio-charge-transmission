@@ -8,7 +8,7 @@ require "stdlib/event/event"
 MOD = {config = {quickstart = require "scripts/quickstart-config"}}
 require "stdlib/debug/quickstart"
 
-local nodes, counters, new_nodes, is_charged, unpaired, bot_max
+local nodes, counters, new_nodes, unpaired, bot_max
 local function init_global(is_load)
   if not is_load then
     global.nodes = global.nodes or {}
@@ -26,7 +26,6 @@ local function init_global(is_load)
   nodes = global.nodes
   counters = global.counters
   new_nodes = global.new_nodes
-  is_charged = global.is_charged
   unpaired = global.unpaired
   bot_max = global.bot_max
 end
@@ -259,6 +258,7 @@ Event.register(defines.events.on_selected_entity_changed, function(event)
     data = Entity.get_data(data.main)
 
     if data.cell and data.cell.valid then
+      -- player.update_selected_entity(data.cell.owner.position)
       player.set_gui_arrow{type="entity", entity=data.cell.owner}
     end
   elseif event.last_entity and event.last_entity.name:match("charge%-transmission_charger") then
@@ -291,10 +291,6 @@ script.on_event(defines.events.on_tick, function(event)
 
   -- before iterating nodes...
   if event.tick%60 == 0 then
-    -- clear registered bots
-    global.is_charged = {}
-    is_charged = global.is_charged
-
     -- register new nodes
     for _, node in pairs(new_nodes) do
       if nodes[node.id] then
@@ -409,11 +405,10 @@ script.on_event(defines.events.on_tick, function(event)
             else bot = logibots[bid - #constrobots] end
             local max_energy = bot_max[bot.name] * modifier
 
-            if bot and max_energy and bot.energy < max_energy then
+            if bot and max_energy and bot.valid and bot.energy < max_energy then
               cost = cost + (max_energy - bot.energy) * 1.5
               if cost < energy then
                 bot.energy = max_energy
-                is_charged[bot.unit_number] = true
                 -- bots = bots + 1
               else break end
             end
@@ -428,9 +423,9 @@ script.on_event(defines.events.on_tick, function(event)
 
       -- set power cost on the transmitteres
       -- TODO: there's two constants down there, we should cache them!
-      for _, charger in pairs(node.chargers) do
-        if charger.energy >= charger.prototype.energy_usage then
-          local data = Entity.get_data(charger)
+      for _, base in pairs(node.chargers) do
+        if base.energy >= base.prototype.energy_usage then
+          local data = Entity.get_data(base)
           data.transmitter.power_usage = debt
 
           -- state machine:
@@ -438,7 +433,8 @@ script.on_event(defines.events.on_tick, function(event)
           --   2: active, don't display
           --   3: active, display (toggled below)
           -- 1->2, 2/3->1
-          if cost > energy or debt > charger.electric_input_flow_limit then
+          if cost > energy or debt > data.transmitter.electric_input_flow_limit then
+            -- log(cost..">"..energy.." : "..debt..">"..data.transmitter.electric_input_flow_limit)
             if data.warning.graphics_variation == 1 then
               data.warning.graphics_variation = 2
             end
