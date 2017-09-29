@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/). Mostly.
 <!-- markdownlint-disable MD022 MD024 MD032 -->
 
 ## [Unreleased]
+
+## [0.4.0] - 2017-09-29
 ### Added
 - Description on bot charger, to hint at rotating mechanic
 ### Changed
@@ -42,6 +44,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/). Mostly.
 - Custom overtaxing
 - README as mod documentation
 
-[Unreleased]: https://github.com/dustine/ChargeTransmission/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/dustine/ChargeTransmission/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/dustine/ChargeTransmission/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/dustine/ChargeTransmission/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/dustine/ChargeTransmission/compare/v0.3.0...v0.3.1
