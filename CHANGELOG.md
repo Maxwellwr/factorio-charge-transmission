@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/). Mostly.
 ### Changed
 - Remade the overtaxed graphic to be more intuitive and in line with the new warning basegame design
 - Bots can be charged more than once a second (less than sucessful optimization removed)
+- Buffed chargers so they can accept up to 24MW (previously 10MW)
 - Made bot chargers respect `worker_robots_battery_modifier`
 ### Fixed
 - Fixed crash if node was added to a roboport with a 0-width construction area

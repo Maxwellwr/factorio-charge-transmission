@@ -6,28 +6,32 @@ local Entity = require "stdlib/entity/entity"
 require "stdlib/event/event"
 
 MOD = {config = {quickstart = require "scripts/quickstart-config"}}
-require "stdlib/debug/quickstart"
+-- require "stdlib/debug/quickstart"
 
 local nodes, counters, new_nodes, unpaired, bot_max
-local function init_global(is_load)
-  if not is_load then
-    global.nodes = global.nodes or {}
-    global.counters = global.counters or {
-      nid = nil,
-      uid = nil,
-      nodes = 0
-    }
-    global.new_nodes = global.new_nodes or {}
-    global.is_charged = global.is_charged or {}
-    global.unpaired = global.unpaired or {}
-    global.bot_max = global.bot_max or {}
-  end
 
+local function init_locals()
   nodes = global.nodes
   counters = global.counters
   new_nodes = global.new_nodes
   unpaired = global.unpaired
   bot_max = global.bot_max
+end
+
+local function init_global()
+  global.nodes = global.nodes or {}
+  global.counters = global.counters or {
+    nid = nil,
+    uid = nil,
+    nodes = 0
+  }
+  global.new_nodes = global.new_nodes or {}
+  global.unpaired = global.unpaired or {}
+  global.bot_max = global.bot_max or {}
+
+  global.changed = global.changed or {}
+
+  init_locals()
 end
 
 -- Automatically blacklists chargeless robots (Creative Mode, Nuclear/Fusion Bots, ...)
@@ -55,20 +59,56 @@ local function set_chargeable_bots()
   -- print(serpent.block(global.ChargeTransmission.bot_names))
 end
 
+local my_changes = {"0.3.2"}
+
+local function migration_ohthreetwo()
+  -- remove is_charged
+  global.is_charged = nil
+
+  -- make all chargers follow the new spec
+  local function reset_charger(charger)
+    local transmitter = Entity.get_data(charger).transmitter
+    if transmitter then
+      transmitter.electric_input_flow_limit = transmitter.prototype.electric_energy_source_prototype.input_flow_limit
+    end
+  end
+
+  for _, charger in pairs(global.unpaired) do
+    reset_charger(charger)
+  end
+
+  for _, node in pairs(global.nodes) do
+    for _, charger in pairs(node.chargers) do
+      reset_charger(charger)
+    end
+  end
+
+  global.changed["0.3.2"] = true
+end
+
 script.on_init(function ()
   init_global()
   set_chargeable_bots()
+  for _, ver in pairs(my_changes) do
+    global.changed[ver] = true
+  end
 end)
 
 script.on_load(function ()
-  init_global(true)
+  init_locals()
 end)
 
 script.on_configuration_changed(function(event)
   set_chargeable_bots()
   if event.mod_changes["ChargeTransmission"] then
-    local ct = event.mod_changes["ChargeTransmission"]
-    -- TODO: Symver-respecting upgrade chain
+    local changes = {}
+    changes["0.3.2"] = migration_ohthreetwo
+    if not global.changed then global.changed = {} end
+    for _, ver in pairs (my_changes) do
+      if not global.changed[ver] then
+        changes[ver](event)
+      end
+    end
   end
 end)
 
@@ -303,7 +343,6 @@ script.on_event(defines.events.on_tick, function(event)
         nodes[node.id] = node
         counters.nodes = counters.nodes + 1
         -- print("added node "..node.id)
-        -- print(#nodes)
       end
     end
 
@@ -373,7 +412,7 @@ script.on_event(defines.events.on_tick, function(event)
             energy = energy + transmitter.energy
             n_chargers = n_chargers + 1
           else
-            -- Reset out of overtaxed (because it's the interface that is dying, not the antenna)
+            -- Reset out of overtaxed (because it's the base that is dying, not the antenna)
             Entity.get_data(charger).warning.graphics_variation = 1
           end
         else

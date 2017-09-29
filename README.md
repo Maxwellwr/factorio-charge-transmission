@@ -4,7 +4,7 @@ Special Factorio beacon-like entities that wirelessly charge bots around them. A
 
 Bots waste a lot of time (and power bursts) having to recharge in the middle of their activities. But if you've got module effect transmission already, how hard would it be to beam electricity around as well...?
 
-Enter the **Bot Charger**, the only (for now?) entity added by this mod, which works exactly as it says on the tin.
+Enter the **Bot Charger**, the only entity added by this mod, which works exactly as it says on the tin.
 
 ## Recipe
 
@@ -40,13 +40,15 @@ To know why a charger is requiring that much power, you first must know how much
 E(bot) = drain + speed * movement cost * worker speed bonus
 ```
 
+
+
 - *Drain* and *movement cost* can be gathered from a robot's tooltip, they're the `3kW + 5kJ/m`, respectively.
 - *Worker speed bonus* can be found from the Bonuses tab (warning: `+300%` would mean the total is `400%`).
 - *Speed* isn't directly said ingame but for vanilla it's `3m/s` for logistic robots and `3.6m/s` for construction robots.
 
 This means that the more *Worker Robot Speed* research obtained the higher a bot's energy maintenance will be, and that construction robots are always slightly more power hungry.
 
-**Chargers only work at 66.7% efficiency**, that is, they take 1.5x the necessary power to charge robots. By default, a single charger can handle up to 315 active construction robots, but at max robot speed (before infinite science), that drops to about 100.
+**Chargers only work at 66.7% efficiency**, that is, they take 1.5x the necessary power to charge robots. By default, a single charger can handle up to 750 active construction robots, but at max robot speed (before infinite science), that drops to about 250.
 
 If that sounds low, don't worry: because robots go faster, from the speed research, and don't need to stop to charge, your robotic demands will be smaller with chargers around.
 
@@ -54,9 +56,9 @@ If that sounds low, don't worry: because robots go faster, from the speed resear
 
 A charger will display a custom alert over itself when it is **overtaxed**. It's hard to miss as it blinks like any other in-game alert.
 
-![roboport with two chargers overtaxed, showing an alert and bots charging](https://i.imgur.com/11cRwBi.png)
+![charged overtaxed, showing an alert](https://media.giphy.com/media/3o7aCWPMdzNUu8vTsk/giphy.gif)
 
-This means that the charger's power needs are bigger than what it can take from the network. Now, this may mean two possibilities: either your power supply isn't sufficient or, most likely than not, there's just too many robots for that single charger to handle at once, as they have a max 10MW buffer recharge rate. For contrast, a vanilla roboport has a 5MW max recharge rate.
+This means that the charger's power needs are bigger than what it can take from the network. Now, this may mean two possibilities: either your power supply isn't sufficient or, most likely than not, there's just too many robots for that single charger to handle at once, as they have a max recharge rate of 24MW. For contrast, a vanilla roboport has a 5MW max recharge rate.
 
 An overtaxed charger will slowly deplete its considerable energy buffers, always charging as many robots as it can. This means that it will, at first, work without issues but eventually not be able to charge everything, which then ends up on some, if not all, robots having to use the traditional charging methods, as shown on the image above.
 
@@ -68,7 +70,7 @@ Easy solution though: *chargers that point to the same roboport will share their
 
 ### My charger doesn't seem to be doing anything
 
-Well, chargers don't have any particle effects, by design (lag, ya know) to warn they've charged a bot. But they do have a visual way to show they're working: the antenna only spins when it's charging bots (or filling its internal energy buffer).
+Well, chargers don't have any particle effects, by design (lag, ya know) to warn they've charged a bot. But they do have a visual way to show they're working: the antenna only spins when it's charging bots (or topping its internal energy buffer).
 
 If you're sure a charger is out of commission (bots still charging around the roboport rather frequently), the likely reasons are:
 
@@ -78,13 +80,11 @@ If you're sure a charger is out of commission (bots still charging around the ro
 
 For the first one, hover your mouse over the charger's antenna and see if it points to any roboport. If not, pick and place the charger on a more suitable (closer) place.
 
-The second and third issues are usually telegraphed in-game by alerts. To verify this, check the electricity values on the sidebar, both the main body AND the antenna must be on the green to be functioning properly. If not, try increasing the power supply or adding more chargers.
-
-If it is something else, please submit a bug report. ~~That includes having a more intuitive symbol for the overtaxing alert, it's weird there's no suitable standard iconography that I could find.~~
+The second and third issues are usually telegraphed in-game by alerts. To verify this, check the electricity values on the sidebar, both the main body (base) AND the antenna must be on the green to be functioning properly. If not, try increasing the power supply or adding more chargers.
 
 ### How does LuaForce::worker\_robots\_battery\_modifier affect chargers
 
-In short, it does not. As of right now (0.15.20), the force-specific modifier only changes a bot's initial energy. A charger will refill a bot to its maximum, leaving it alone if it's overcharged (if the modifier is positive), and charge it right up to max if it isn't (negative modifier).
+In short, it does not! It only changes the maximum charge a bot can have, with average/over time consumption staying the same. Usually what happens is bigger use spikes, if any, but the same consumption under regular circunstances stays the same on a factory faction with or without the modifier. And the modifier is really useful to alleviate charging headaches to start with...
 
 ### I found a bug! Please fix it
 
