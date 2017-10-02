@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/). Mostly.
 <!-- markdownlint-disable MD022 MD024 MD032 -->
 
 ## [Unreleased]
+## Added
+- (Proper) Picker dolly support
 
 ## [0.4.0] - 2017-09-29
 ### Added

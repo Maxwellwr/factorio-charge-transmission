@@ -86,18 +86,6 @@ local function migration_ohthreetwo()
   global.changed["0.3.2"] = true
 end
 
-script.on_init(function ()
-  init_global()
-  set_chargeable_bots()
-  for _, ver in pairs(my_changes) do
-    global.changed[ver] = true
-  end
-end)
-
-script.on_load(function ()
-  init_locals()
-end)
-
 script.on_configuration_changed(function(event)
   set_chargeable_bots()
   if event.mod_changes["ChargeTransmission"] then
@@ -503,5 +491,54 @@ script.on_event(defines.events.on_tick, function(event)
         end
       end
     end
+  end
+end)
+
+local function on_dolly_moved_entity(event)
+  --[[
+    player_index = player_index, --The index of the player who moved the entity
+    moved_entity = entity, --The entity that was moved
+    start_pos = position --The position that the entity was moved from
+  --]]
+
+  if event.moved_entity.name:find("charge%-transmission_charger") then
+    if event.moved_entity.name == "charge-transmission_charger-transmitter" then
+      -- nuh huh, transmitter can't move, put that thing back where it came from, or so help me!
+      event.moved_entity.teleport(event.start_pos)
+    else
+      -- warning can't be selected so we know it's the base
+      -- move the rest of the composed entity
+      local charger = event.moved_entity
+      local data = Entity.get_data(charger)
+      if data.warning and data.warning.valid then data.warning.teleport(charger.position) end
+      if data.transmitter and data.transmitter.valid then data.transmitter.teleport(charger.position) end
+      -- check if connected roboport is still within range
+      if data.cell and not data.cell.is_in_logistic_range(charger.position) then
+        print("outside range!")
+        unpair_charger(charger)
+        unpaired[charger.unit_number] = charger
+        print("unpaired charger "..charger.unit_number.." because out of reach")
+      end
+    end
+  end
+end
+
+script.on_init(function ()
+  init_global()
+  set_chargeable_bots()
+  for _, ver in pairs(my_changes) do
+    global.changed[ver] = true
+  end
+
+  if remote.interfaces["picker"] and remote.interfaces["picker"]["dolly_moved_entity_id"] then
+    script.on_event(remote.call("picker", "dolly_moved_entity_id"), on_dolly_moved_entity)
+  end
+end)
+
+script.on_load(function ()
+  init_locals()
+
+  if remote.interfaces["picker"] and remote.interfaces["picker"]["dolly_moved_entity_id"] then
+    script.on_event(remote.call("picker", "dolly_moved_entity_id"), on_dolly_moved_entity)
   end
 end)
