@@ -298,9 +298,9 @@ end)
 -- *  code check
 -- *  add more .valid checks
 script.on_event(defines.events.on_tick, function(event)
-
   -- charger re-pairing
   local next_charger
+  if not unpaired[counters.uid] then counters.uid = nil end
   counters.uid, next_charger = next(unpaired, counters.uid)
   -- print("on_tick:unpair:"..(counters.uid or "nil")..":"..((next_charger and next_charger.valid and next_charger.unit_number) or "nil"))
   if next_charger then

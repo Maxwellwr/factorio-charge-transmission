@@ -9,8 +9,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/). Mostly.
 
 ## [Unreleased]
 
+## [0.4.2] - 2017-10-03
+### Fixed
+- Ensure valid unpaired index before iterating (could cause desync)
+
 ## [0.4.1] - 2017-10-03
-## Added
+### Added
 - (Proper) Picker dolly support
 
 ## [0.4.0] - 2017-09-29
