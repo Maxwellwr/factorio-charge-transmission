@@ -208,11 +208,13 @@ local function on_mined_charger(charger)
   if(charger.name:find("charge%-transmission_charger")) then
     -- remove composite partners
     local data = Entity.get_data(charger)
-    if data.transmitter and data.transmitter.valid then data.transmitter.destroy() end
-    if data.warning and data.warning.valid then data.warning.destroy() end
+    if data then
+      if data.transmitter and data.transmitter.valid then data.transmitter.destroy() end
+      if data.warning and data.warning.valid then data.warning.destroy() end
 
-    -- erase data
-    Entity.set_data(charger, nil)
+      -- erase data
+      Entity.set_data(charger, nil)
+    end
 
     -- remove oneself from nodes
     unpair_charger(charger)
@@ -265,8 +267,8 @@ Event.register(defines.events.on_robot_built_entity, function(event) on_built_ch
 
 -- TODO: the function is kind of a misnamer now, isn't it
 Event.register(defines.events.on_entity_died, function(event) on_mined_charger(event.entity) end)
-Event.register(defines.events.on_player_mined_entity, function(event) on_mined_charger(event.entity) end)
-Event.register(defines.events.on_robot_mined_entity, function(event) on_mined_charger(event.entity) end)
+Event.register(defines.events.on_preplayer_mined_item, function(event) on_mined_charger(event.entity) end)
+Event.register(defines.events.on_robot_pre_mined, function(event) on_mined_charger(event.entity) end)
 
 Event.register(defines.events.on_player_rotated_entity, function(event)
   if(event.entity.name:find("charge%-transmission_charger%-transmitter")) then

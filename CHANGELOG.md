@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/). Mostly.
 
 ## [Unreleased]
 
+## [0.4.3] - 2017-10-07
+### Fixed
+- Chargers are disassembled on pre_mined event now for mod compatibility
+
 ## [0.4.2] - 2017-10-03
 ### Fixed
 - Ensure valid unpaired index before iterating (could cause desync)
@@ -21,8 +25,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/). Mostly.
 ### Added
 - Description on bot charger, to hint at rotating mechanic
 ### Changed
-- Remade the overtaxed graphic to be more intuitive and in line with the new warning basegame design
-- Bots can be charged more than once a second (less than sucessful optimization removed)
+- Remade the overtaxed graphic to be more intuitive and in line with the new warning base-game design
+- Bots can be charged more than once a second (less than successful optimization removed)
 - Buffed chargers so they can accept up to 24MW (previously 10MW)
 - Made bot chargers respect `worker_robots_battery_modifier`
 ### Fixed
@@ -40,7 +44,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/). Mostly.
 - Changelog
 - Referral in README for KoS
 ### Changed
-- Reworked README for better compatability with Factorio's mod portal
+- Reworked README for better compatibility with Factorio's mod portal
 - .gitignore ignores mod portal images (including icon)
 - Mod metadata points at forum thread
 ### Fixed
@@ -52,7 +56,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/). Mostly.
 - Custom overtaxing
 - README as mod documentation
 
-[Unreleased]: https://github.com/dustine/ChargeTransmission/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/dustine/ChargeTransmission/compare/v0.4.3...HEAD
+[0.4.3]: https://github.com/dustine/ChargeTransmission/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/dustine/ChargeTransmission/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/dustine/ChargeTransmission/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/dustine/ChargeTransmission/compare/v0.3.2...v0.4.0
