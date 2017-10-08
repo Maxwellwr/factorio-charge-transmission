@@ -432,9 +432,9 @@ script.on_event(defines.events.on_tick, function(event)
             local bot
             if bid <= #constrobots then bot = constrobots[bid]
             else bot = logibots[bid - #constrobots] end
-            local max_energy = bot_max[bot.name] * modifier
+            local max_energy = (bot_max[bot.name] or 0) * modifier
 
-            if bot and max_energy and bot.valid and bot.energy < max_energy then
+            if bot and bot.valid and bot.energy < max_energy then
               cost = cost + (max_energy - bot.energy) * 1.5
               if cost < energy then
                 bot.energy = max_energy

@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/). Mostly.
 
 ## [Unreleased]
 
+## [0.4.4] - 2017-10-08
+### Fixed
+- Chargeless robots workaround no longer crashes the game
+
 ## [0.4.3] - 2017-10-07
 ### Fixed
 - Chargers are disassembled on pre_mined event now for mod compatibility
@@ -56,7 +60,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/). Mostly.
 - Custom overtaxing
 - README as mod documentation
 
-[Unreleased]: https://github.com/dustine/ChargeTransmission/compare/v0.4.3...HEAD
+[Unreleased]: https://github.com/dustine/ChargeTransmission/compare/v0.4.4...HEAD
+[0.4.4]: https://github.com/dustine/ChargeTransmission/compare/v0.4.3...v0.4.4
 [0.4.3]: https://github.com/dustine/ChargeTransmission/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/dustine/ChargeTransmission/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/dustine/ChargeTransmission/compare/v0.4.0...v0.4.1
