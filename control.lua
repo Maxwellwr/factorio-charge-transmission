@@ -11,103 +11,13 @@ local Position = require "stdlib/area/position"
 local Entity = require "stdlib/entity/entity"
 require "stdlib/event/event"
 
+-- Enables Debug mode for new saves
 if MOD.config.DEBUG then
   log(MOD.name .. " Debug mode enabled")
   require("stdlib/debug/quickstart")
 end
 
 local nodes, counters, new_nodes, unpaired, bot_max
-
-local function init_locals()
-  nodes = global.nodes
-  counters = global.counters
-  new_nodes = global.new_nodes
-  unpaired = global.unpaired
-  bot_max = global.bot_max
-end
-
-local function init_global()
-  global.nodes = global.nodes or {}
-  global.counters = global.counters or {
-    nid = nil,
-    uid = nil,
-    nodes = 0
-  }
-  global.new_nodes = global.new_nodes or {}
-  global.unpaired = global.unpaired or {}
-  global.bot_max = global.bot_max or {}
-
-  global.changed = global.changed or {}
-
-  init_locals()
-end
-
--- Automatically blacklists chargeless robots (Creative Mode, Nuclear/Fusion Bots, ...)
-local function is_chargeable_bot(proto)
-  -- Creative Mode; Nuclear Robots; Jamozed's Fusion Robots
-  return (proto.energy_per_tick > 0 or proto.energy_per_move > 0) and proto.speed_multiplier_when_out_of_energy < 1
-end
-
-local function set_chargeable_bots()
-  global.bot_max = {}
-  bot_max = global.bot_max
-
-  for _, proto in pairs(game.entity_prototypes) do
-    if proto.type == "logistic-robot" then
-      if is_chargeable_bot(proto) then
-        bot_max[proto.name] = proto.max_energy
-      end
-    elseif proto.type == "construction-robot" then
-      if is_chargeable_bot(proto) then
-        bot_max[proto.name] = proto.max_energy
-      end
-    end
-  end
-
-  -- print(serpent.block(global.ChargeTransmission.bot_names))
-end
-
-local my_changes = {"0.3.2"}
-
-local function migration_ohthreetwo()
-  -- remove is_charged
-  global.is_charged = nil
-
-  -- make all chargers follow the new spec
-  local function reset_charger(charger)
-    local transmitter = Entity.get_data(charger).transmitter
-    if transmitter then
-      transmitter.electric_input_flow_limit = transmitter.prototype.electric_energy_source_prototype.input_flow_limit
-    end
-  end
-
-  for _, charger in pairs(global.unpaired) do
-    reset_charger(charger)
-  end
-
-  for _, node in pairs(global.nodes) do
-    for _, charger in pairs(node.chargers) do
-      reset_charger(charger)
-    end
-  end
-
-  global.changed["0.3.2"] = true
-end
-
-script.on_configuration_changed(function(event)
-  set_chargeable_bots()
-  if event.mod_changes["ChargeTransmission"] then
-    local changes = {}
-    changes["0.3.2"] = migration_ohthreetwo
-    if not global.changed then global.changed = {} end
-    for _, ver in pairs (my_changes) do
-      if not global.changed[ver] then
-        changes[ver](event)
-      end
-    end
-  end
-end)
-
 
 local function find_node(cell)
   if not(cell and cell.valid and cell.owner.valid) then return end
@@ -270,10 +180,39 @@ local function on_player_rotated_charger(charger, player)
   end
 end
 
+local function on_dolly_moved_entity(event)
+  --[[
+    player_index = player_index, --The index of the player who moved the entity
+    moved_entity = entity, --The entity that was moved
+    start_pos = position --The position that the entity was moved from
+  --]]
+
+  if event.moved_entity.name:find("charge%-transmission_charger") then
+    if event.moved_entity.name == "charge-transmission_charger-transmitter" then
+      -- nuh huh, transmitter can't move, put that thing back where it came from, or so help me!
+      event.moved_entity.teleport(event.start_pos)
+    else
+      -- warning can't be selected so we know it's the base
+      -- move the rest of the composed entity
+      local charger = event.moved_entity
+      local data = Entity.get_data(charger)
+      if data.warning and data.warning.valid then data.warning.teleport(charger.position) end
+      if data.transmitter and data.transmitter.valid then data.transmitter.teleport(charger.position) end
+      -- check if connected roboport is still within range
+      if data.cell and not data.cell.is_in_logistic_range(charger.position) then
+        print("outside range!")
+        unpair_charger(charger)
+        unpaired[charger.unit_number] = charger
+        print("unpaired charger "..charger.unit_number.." because out of reach")
+      end
+    end
+  end
+end
+
 Event.register(defines.events.on_built_entity, function(event) on_built_charger(event.created_entity) end)
 Event.register(defines.events.on_robot_built_entity, function(event) on_built_charger(event.created_entity) end)
 
--- TODO: the function is kind of a misnamer now, isn't it
+-- TODO: the function is kind of a misnomer now, isn't it
 Event.register(defines.events.on_entity_died, function(event) on_mined_charger(event.entity) end)
 Event.register(defines.events.on_preplayer_mined_item, function(event) on_mined_charger(event.entity) end)
 Event.register(defines.events.on_robot_pre_mined, function(event) on_mined_charger(event.entity) end)
@@ -458,7 +397,7 @@ script.on_event(defines.events.on_tick, function(event)
       end
 
 
-      -- set power cost on the transmitteres
+      -- set power cost on the transmitters
       -- TODO: there's two constants down there, we should cache them!
       for _, base in pairs(node.chargers) do
         if base.energy >= base.prototype.energy_usage then
@@ -504,51 +443,87 @@ script.on_event(defines.events.on_tick, function(event)
   end
 end)
 
-local function on_dolly_moved_entity(event)
-  --[[
-    player_index = player_index, --The index of the player who moved the entity
-    moved_entity = entity, --The entity that was moved
-    start_pos = position --The position that the entity was moved from
-  --]]
 
-  if event.moved_entity.name:find("charge%-transmission_charger") then
-    if event.moved_entity.name == "charge-transmission_charger-transmitter" then
-      -- nuh huh, transmitter can't move, put that thing back where it came from, or so help me!
-      event.moved_entity.teleport(event.start_pos)
-    else
-      -- warning can't be selected so we know it's the base
-      -- move the rest of the composed entity
-      local charger = event.moved_entity
-      local data = Entity.get_data(charger)
-      if data.warning and data.warning.valid then data.warning.teleport(charger.position) end
-      if data.transmitter and data.transmitter.valid then data.transmitter.teleport(charger.position) end
-      -- check if connected roboport is still within range
-      if data.cell and not data.cell.is_in_logistic_range(charger.position) then
-        print("outside range!")
-        unpair_charger(charger)
-        unpaired[charger.unit_number] = charger
-        print("unpaired charger "..charger.unit_number.." because out of reach")
+--[[ MOD INIT/LOAD ]]
+
+local migration_scripts = require("scripts.migrations")
+
+-- Automatically blacklists chargeless robots (Creative Mode, Nuclear/Fusion Bots, ...)
+local function is_chargeable_bot(prototype)
+  -- Creative Mode; Nuclear Robots; Jamozed's Fusion Robots
+  return (prototype.energy_per_tick > 0 or prototype.energy_per_move > 0) and prototype.speed_multiplier_when_out_of_energy < 1
+end
+
+local function get_bots_info()
+  local max_energies = {}
+
+  for _, prototype in pairs(game.entity_prototypes) do
+    if prototype.type == "logistic-robot" or prototype.type == "construction-robot" then
+      if is_chargeable_bot(prototype) then
+        max_energies[prototype.name] = prototype.max_energy
       end
     end
   end
+
+  log(serpent.block(max_energies))
+
+  return max_energies
+end
+
+local function init_global()
+  global.nodes = global.nodes or {}
+  global.counters = global.counters or {
+    nid = nil,
+    uid = nil,
+    nodes = 0
+  }
+  global.new_nodes = global.new_nodes or {}
+  global.unpaired = global.unpaired or {}
+  global.bot_max = get_bots_info()
+
+  global.changed = global.changed or {}
+end
+
+local function on_load()
+  --[[ setup metatables ]]
+
+  --[[ subscribe conditional event handlers ]]
+  -- Subscribe to Picker's Dolly event
+  if remote.interfaces["picker"] and remote.interfaces["picker"]["dolly_moved_entity_id"] then
+    script.on_event(remote.call("picker", "dolly_moved_entity_id"), on_dolly_moved_entity)
+  end
+
+  --[[ init local variables ]]
+  nodes = global.nodes
+  counters = global.counters
+  new_nodes = global.new_nodes
+  unpaired = global.unpaired
+  bot_max = global.bot_max
 end
 
 script.on_init(function ()
   init_global()
-  set_chargeable_bots()
-  for _, ver in pairs(my_changes) do
+
+  -- Disable all past migrations
+  for _, ver in pairs(MOD.migrations) do
     global.changed[ver] = true
   end
 
-  if remote.interfaces["picker"] and remote.interfaces["picker"]["dolly_moved_entity_id"] then
-    script.on_event(remote.call("picker", "dolly_moved_entity_id"), on_dolly_moved_entity)
-  end
+  on_load()
 end)
 
-script.on_load(function ()
-  init_locals()
+script.on_load(on_load)
 
-  if remote.interfaces["picker"] and remote.interfaces["picker"]["dolly_moved_entity_id"] then
-    script.on_event(remote.call("picker", "dolly_moved_entity_id"), on_dolly_moved_entity)
+script.on_configuration_changed(function(event)
+  global.bot_max = get_bots_info()
+  bot_max = global.bot_max
+
+  if event.mod_changes["ChargeTransmission"] then
+    if not global.changed then global.changed = {} end
+    for _, ver in pairs(MOD.migrations) do
+      if not global.changed[ver] and migration_scripts[ver](event) then
+        global.changed[ver] = true
+      end
+    end
   end
 end)
