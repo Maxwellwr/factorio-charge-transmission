@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/). Mostly.
 <!-- markdownlint-disable MD022 MD024 MD032 -->
 
 ## [Unreleased]
+### Added
+
+### Changed
+- Charger is now a beacon base, can use effectivity modules (configurable, on by default)
+- New graphics for charger (place-holder)
+
+### Fixed
+- Blurred overtaxed icon
+- Debug mode wasn't logged if triggered
+- Charger base had the wrong render order for subcomponents
 
 ## [0.4.4] - 2017-10-08
 ### Fixed
