@@ -1,12 +1,20 @@
--- require "stdlib/event/event"
+MOD = {}
+MOD.name = "ChargeTransmission"
+MOD.if_name = "charge-transmission"
+MOD.interfaces = {}
+MOD.commands = {}
+MOD.config = require("config")
+
 local Position = require "stdlib/area/position"
 -- local Area = require "stdlib/area/area"
 -- local Surface = require "stdlib/surface"
 local Entity = require "stdlib/entity/entity"
 require "stdlib/event/event"
 
-MOD = {config = {quickstart = require "scripts/quickstart-config"}}
--- require "stdlib/debug/quickstart"
+if MOD.config.DEBUG then
+  log(MOD.name .. " Debug mode enabled")
+  require("stdlib/debug/quickstart")
+end
 
 local nodes, counters, new_nodes, unpaired, bot_max
 

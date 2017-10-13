@@ -30,6 +30,6 @@ return {
     "creative-mode_super-substation",
     "creative-mode_magic-wand-modifier",
     "creative-mode_super-roboport",
-    "charge-transmission_charger"
+    "charge_transmission-charger"
   }
 }
