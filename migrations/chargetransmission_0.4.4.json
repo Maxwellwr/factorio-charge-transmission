@@ -1,0 +1,14 @@
+{
+    "entity": [
+        ["charge-transmission_charger-interface", "charge_transmission-charger-base"]
+    ],
+    "item": [
+        ["charge-transmission_charger", "charge_transmission-charger"]
+    ],
+    "recipe": [
+        ["charge-transmission_charger", "charge_transmission-charger"]
+    ],
+    "technology": [
+        ["charge-transmission_charger", "charge_transmission-charger"]
+    ]
+}

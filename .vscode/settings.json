@@ -5,14 +5,20 @@
         "logibots",
         "constrobots",
         "Jamozed's",
-        "preplayer"
+        "preplayer",
+        "color"
     ],
     "cSpell.words": [
+        "deepcopy",
+        "effectivity",
         "ipairs",
         "math",
         "metatables",
+        "minable",
+        "quickbar",
         "quickstart",
         "roboport",
-        "stdlib"
+        "stdlib",
+        "timeout"
     ]
 }

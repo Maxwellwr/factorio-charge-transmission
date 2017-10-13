@@ -1,15 +1,15 @@
 --[[
-Bot charger: Recharges bots on the closest roboport's area coverage
+Bot charger: Recharges bots on the closest roboport area coverage
 --]]
 
-local Color = require "stdlib/color/color"
+local Colour = require "stdlib/color/color"
 local Prototype = require "stdlib/prototype/prototype"
 
-local icon = {{icon = "__base__/graphics/icons/beacon.png", tint = Color.from_hex("#00bbee")}}
+local icon = {{icon = "__base__/graphics/icons/beacon.png", tint = Colour.from_hex("#00bbee")}}
 
 local entity_warning = {
   type = "simple-entity",
-  name = "charge-transmission_charger-warning",
+  name = "charge_transmission-charger-warning",
   render_layer = "entity-info-icon",
   icon = "__ChargeTransmission__/graphics/entities/charger/transmitter-icon.png",
   flags = {"not-on-map"},
@@ -17,6 +17,7 @@ local entity_warning = {
   collision_mask = {},
   collision_box = {{-0.8, -0.8}, {0.8, 0.8}},
   selection_box = {{-0.5, -0.5}, {0.5, 0.5}},
+
   pictures = {
     Prototype.empty_sprite(),
     Prototype.empty_sprite(),
@@ -30,29 +31,18 @@ local entity_warning = {
   }}
 }
 
-local entity_transmitter = {
+local entity_interface = {
   type = "electric-energy-interface",
-  name = "charge-transmission_charger-transmitter",
+  name = "charge_transmission-charger-interface",
   icon = "__ChargeTransmission__/graphics/entities/charger/transmitter-icon.png",
   flags = {"player-creation", "not-on-map"},
-  render_layer = "higher-object-above",
+  -- render_layer = "higher-object-above",
   collision_mask = {},
   collision_box = {{-0.8, -0.8}, {0.8, 0.8}},
   selection_box = {{-0.5, -1}, {0.5, 0}},
   selection_priority = 200,
   selectable_in_game = true,
-  animation = {
-    filename = "__base__/graphics/entity/beacon/beacon-antenna.png",
-    width = 54,
-    height = 50,
-    line_length = 8,
-    frame_count = 32,
-    shift = util.by_pixel(-1,-55+32+4),
-    tint = Color.from_hex("#00bbee"),
-    animation_speed = 0.5
-  },
-  enable_gui = false,
-  allow_copy_paste = false,
+
   energy_source = {
     type = "electric",
     buffer_capacity = "200MJ",
@@ -63,21 +53,35 @@ local entity_transmitter = {
   },
   energy_production = "0W",
   energy_usage = "0W",
+
+  enable_gui = false,
+  allow_copy_paste = false,
+
+  animation = {
+    filename = "__base__/graphics/entity/beacon/beacon-antenna.png",
+    width = 54,
+    height = 50,
+    line_length = 8,
+    frame_count = 32,
+    shift = util.by_pixel(-1,-55+32+4),
+    tint = Colour.from_hex("#00bbee"),
+    animation_speed = 0.5,
+  },
 }
 
--- TODO: clean this even more, there's a few unecessary fields that aren't simplified
-local entity_interface = {
-  rotate = true,
-  type = "roboport",
-  name = "charge-transmission_charger-interface",
+-- TODO: clean this even more, there's a few unnecessary fields that aren't simplified
+local entity_base = {
+  type = "beacon",
+  name = "charge_transmission-charger-base",
   -- TODO: better icon for the interface?
   icons = table.deepcopy(icon),
   flags = {"placeable-player", "player-creation"},
-  corpse = "medium-remnants",
-  minable = {hardness = 0.2, mining_time = 0.5, result = "charge-transmission_charger"},
-  collision_box = {{-0.8, -0.8}, {0.8, 0.8}},
+  minable = {mining_time = 1, result = "charge_transmission-charger"},
+  collision_box = {{-0.9, -0.4}, {0.9, 0.8}},
   selection_box = {{-1, -1}, {1, 1}},
-  drawing_box = {{-1, -1.5}, {1, 0.5}},
+
+  max_health = 200,
+  corpse = "medium-remnants",
   dying_explosion = "medium-explosion",
   resistances = {{
     type = "fire",
@@ -86,88 +90,83 @@ local entity_interface = {
     type = "impact",
     percent = 30
   }},
-  max_health = 200,
+
   energy_source = {
     type = "electric",
-    usage_priority = "secondary-input",
-    input_flow_limit = "4MW",
-    buffer_capacity = "2MJ",
+    usage_priority = "primary-input",
+    -- input_flow_limit = "4MW",
+    -- buffer_capacity = "2MJ",
   },
-  recharge_minimum = "314kJ",
   energy_usage = "314kW",
-  -- per one charge slot
-  charging_energy = "0kW",
-  logistics_radius = 0,
-  construction_radius = 0,
-  charge_approach_distance = 0,
-  robot_slots_count = 0,
-  material_slots_count = 0,
-  stationing_offset = {0, 0},
-  charging_offsets = {},
+
+  allowed_effects = {"consumption"},
+  supply_area_distance = 0,
+  distribution_effectivity = 0.5,
+  module_specification = {
+    module_slots = (settings.startup["charge_transmission-use-modules"].value and 2) or 0,
+    module_info_icon_shift = {-0.25, 0.25},
+    -- module_info_multi_row_initial_height_modifier = 0.3
+  },
+
   -- TODO: Better base graphics, yes.
-  base = {
+  base_picture = {
     filename = "__ChargeTransmission__/graphics/entities/charger/base.png",
     width = 64,
     height = 64,
-    shift = util.by_pixel(0, 8),
-  },
-  base_patch = Prototype.empty_sprite(),
-  base_animation = Prototype.empty_animation(),
-  door_animation_up = Prototype.empty_animation(),
-  door_animation_down = Prototype.empty_animation(),
-  recharging_animation = Prototype.empty_animation(),
-
-  recharging_light = {intensity = 0.4, size = 5, color = {r = 1.0, g = 1.0, b = 1.0}},
-  request_to_open_door_timeout = 15,
-  spawn_and_station_height = -0.1,
-
-  draw_logistic_radius_visualization = false,
-  draw_construction_radius_visualization = false,
-
-  open_door_trigger_effect = {{
-    type = "play-sound",
-    sound = { filename = "__base__/sound/roboport-door.ogg", volume = 1.2 }
-  }},
-  close_door_trigger_effect = {{
-    type = "play-sound",
-    sound = { filename = "__base__/sound/roboport-door.ogg", volume = 0.75 }
-  }},
-  circuit_wire_connection_point = {
-    shadow = {
-      red = {1.17188, 1.98438},
-      green = {1.04688, 2.04688}
-    },
-    wire = {
-      red = {0.78125, 1.375},
-      green = {0.78125, 1.53125}
+    shift = util.by_pixel(4, -9),
+    hr_version = {
+      filename = "__ChargeTransmission__/graphics/entities/charger/hr/base.png",
+      width = 128,
+      height = 128,
+      shift = util.by_pixel(4, -9),
+      scale = 0.5
     }
   },
-  circuit_connector_sprites = get_circuit_connector_sprites({0.59375, 1.3125}, nil, 18),
-  circuit_wire_max_distance = 0,
-  default_available_logistic_output_signal = {type = "virtual", name = "signal-X"},
-  default_total_logistic_output_signal = {type = "virtual", name = "signal-Y"},
-  default_available_construction_output_signal = {type = "virtual", name = "signal-Z"},
-  default_total_construction_output_signal = {type = "virtual", name = "signal-T"},
+  animation = {
+    filename = "__ChargeTransmission__/graphics/entities/charger/base-animation.png",
+    width = 24,
+    height = 24,
+    line_length = 6,
+    frame_count = 6,
+    shift = util.by_pixel(-12, -4),
+    animation_speed = 0.05,
+    hr_version = {
+      filename = "__ChargeTransmission__/graphics/entities/charger/hr/base-animation.png",
+      width = 48,
+      height = 48,
+      line_length = 6,
+      frame_count = 6,
+      shift = util.by_pixel(-12, -4),
+      animation_speed = 0.05,
+      scale = 0.5
+    }
+  },
+  -- animation_shadow = Prototype.empty_animation(6),
+  radius_visualisation_picture = {
+    filename = "__base__/graphics/entity/beacon/beacon-radius-visualization.png",
+    width = 10,
+    height = 10
+  },
 
   vehicle_impact_sound =  { filename = "__base__/sound/car-metal-impact.ogg", volume = 0.65 },
 }
 
+entity_base.animation_shadow = table.deepcopy(entity_base.animation)
+
 local item = {
   type = "item",
-  name = "charge-transmission_charger",
-  localized_name = {"item-name.charge-transmission_charger"},
+  name = "charge_transmission-charger",
   icon = "__ChargeTransmission__/graphics/entities/charger/transmitter-icon.png",
   flags = {"goes-to-quickbar"},
   subgroup = "logistic-network",
   order = "c[signal]-a[roboport]",
-  place_result = "charge-transmission_charger-interface",
+  place_result = "charge_transmission-charger-base",
   stack_size = 20
 }
 
 local recipe = {
   type = "recipe",
-  name = "charge-transmission_charger",
-  localized_name = {"item-name.charge-transmission_charger"},
+  name = "charge_transmission-charger",
   enabled = false,
   energy_required = 15,
   ingredients =
@@ -177,19 +176,19 @@ local recipe = {
     {"processing-unit", 10},
     {"battery", 20},
   },
-  result = "charge-transmission_charger"
+  result = "charge_transmission-charger"
 }
 
 local technology = {
   type = "technology",
-  name = "charge-transmission_charger",
+  name = "charge_transmission-charger",
   icon = "__ChargeTransmission__/graphics/entities/charger/technology.png",
   icon_size = 128,
   effects =
   {
     {
       type = "unlock-recipe",
-      recipe = "charge-transmission_charger"
+      recipe = "charge_transmission-charger"
     }
   },
   prerequisites = {"effect-transmission", "robotics", "effectivity-module-3"},
@@ -208,4 +207,4 @@ local technology = {
   order = "i-i"
 }
 
-data:extend{entity_warning, entity_transmitter, entity_interface, item, recipe, technology}
+data:extend{entity_warning, entity_transmitter, entity_base, item, recipe, technology}
