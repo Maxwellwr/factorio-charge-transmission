@@ -39,7 +39,10 @@ local entity_interface = {
   -- render_layer = "higher-object-above",
   collision_mask = {},
   collision_box = {{-0.8, -0.8}, {0.8, 0.8}},
-  selection_box = {{-0.5, -1}, {0.5, 0}},
+  selection_box = {
+    util.by_pixel(9, 3), util.by_pixel(31, 25)
+    -- {0.375, 0.375}, {0.875, 0.875}
+  },
   selection_priority = 200,
   selectable_in_game = true,
 
@@ -57,17 +60,40 @@ local entity_interface = {
   enable_gui = false,
   allow_copy_paste = false,
 
-  animation = {
-    filename = "__base__/graphics/entity/beacon/beacon-antenna.png",
-    width = 54,
-    height = 50,
-    line_length = 8,
-    frame_count = 32,
-    shift = util.by_pixel(-1,-55+32+4),
-    tint = Colour.from_hex("#00bbee"),
-    animation_speed = 0.5,
-  },
+  picture = Prototype.empty_sprite()
 }
+
+local entity_display = {
+  type = "simple-entity",
+  name = "charge_transmission-charger-display",
+  icon = "__ChargeTransmission__/graphics/entities/charger/transmitter-icon.png",
+  flags = {"not-on-map"},
+  selectable_in_game = false,
+  collision_mask = {},
+  collision_box = {{-0.8, -0.8}, {0.8, 0.8}},
+  selection_box = {{-0.8, -0.8}, {0.8, 0.8}},
+  pictures = {}
+}
+
+for i=1,9 do
+  table.insert(entity_display.pictures, {
+    filename = "__ChargeTransmission__/graphics/entities/charger/base-interface.png",
+    width = 14,
+    height = 14,
+    x = (i-1) * 14,
+    shift = util.by_pixel(20, 14),
+    hr_version = {
+      filename = "__ChargeTransmission__/graphics/entities/charger/hr/base-interface.png",
+      width = 28,
+      height = 28,
+      x = (i-1) * 28,
+      scale = 0.5,
+      shift = util.by_pixel(20, 14),
+    }
+  })
+end
+
+-- log(serpent.block(entity_interface.pictures))
 
 -- TODO: clean this even more, there's a few unnecessary fields that aren't simplified
 local entity_base = {
@@ -79,6 +105,7 @@ local entity_base = {
   minable = {mining_time = 1, result = "charge_transmission-charger"},
   collision_box = {{-0.9, -0.4}, {0.9, 0.8}},
   selection_box = {{-1, -1}, {1, 1}},
+  sticker_box = {{-0.3, -0.5}, {0.3, 0.1}},
 
   max_health = 200,
   corpse = "medium-remnants",
@@ -207,4 +234,4 @@ local technology = {
   order = "i-i"
 }
 
-data:extend{entity_warning, entity_transmitter, entity_base, item, recipe, technology}
+data:extend{entity_warning, entity_interface, entity_display, entity_base, item, recipe, technology}

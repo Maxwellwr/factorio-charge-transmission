@@ -9,10 +9,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/). Mostly.
 
 ## [Unreleased]
 ### Added
+- Display that points towards the target roboport (doesn't replace the arrow-on-hover, just a quicker indicator at a glance)
 
 ### Changed
 - Charger is now a beacon base, can use effectivity modules (configurable, on by default)
 - New graphics for charger (place-holder)
+- en localization word capitalization
 
 ### Fixed
 - Blurred overtaxed icon

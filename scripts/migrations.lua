@@ -1,4 +1,4 @@
-MOD.migrations = {"0.3.2"}
+MOD.migrations = {"0.3.2", "0.4.4"}
 
 local Entity = require "stdlib/entity/entity"
 
@@ -27,7 +27,22 @@ local function oh_three_two()
   return true
 end
 
+local function oh_four_four()
+  global.nodes = {}
+  global.chargers = {}
+  global.new_nodes = {}
+  global.new_chargers = {}
+  global.bot_max = get_bots_info()
+
+  global.next_node = global.next_node or nil
+  global.next_charger = global.next_charger or nil
+  global.node_count = global.node_count or 0
+
+  global.changed = global.changed or {}
+end
+
 local scripts = {}
 scripts["0.3.2"] = oh_three_two
+scripts["0.4.4"] = oh_four_four
 
 return scripts
