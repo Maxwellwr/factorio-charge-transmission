@@ -72,7 +72,7 @@ local entity_display = {
   collision_mask = {},
   collision_box = {{-0.8, -0.8}, {0.8, 0.8}},
   selection_box = {{-0.8, -0.8}, {0.8, 0.8}},
-  pictures = {}
+  pictures = {Prototype.empty_sprite()}
 }
 
 for i=1,9 do

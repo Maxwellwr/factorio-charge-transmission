@@ -20,9 +20,10 @@ end
 
 local chargers, nodes, new_chargers, new_nodes, counters, bot_max
 
-
+-- returns the node serving this cell
+-- even if the node is enqueued to be added (in new_nodes)
 local function get_node(cell)
-  if not(cell and cell.valid and cell.owner.valid) then return end
+  if not(cell and cell.valid) then return end
   return nodes[cell.owner.unit_number] or new_nodes[cell.owner.unit_number]
 end
 
@@ -38,21 +39,18 @@ local function get_closest_cell(position, network)
   -- let's find out!
 
   -- get cells that are close enough (include position) and are in a node
-  local possible_nodes = table.filter(network.cells, function (cell)
+  local possible_nodes = table.filter(network.cells, function(cell)
     return cell.is_in_logistic_range(position) and get_node(cell)
   end)
 
-  -- if the result list isn't empty...
-  if next(possible_nodes) then
-    -- find the closest of these
+  -- find the closest of these
+  local min = math.huge
 
-    local min = math.huge
-
-    for _, cell in pairs(possible_nodes) do
-      local distance = Position.distance_squared(position, cell.owner.position)
-      if distance < min then
-        min = distance; closest_cell = cell
-      end
+  for _, cell in pairs(possible_nodes) do
+    -- the loop doesn't run if the table's empty
+    local distance = Position.distance_squared(position, cell.owner.position)
+    if distance < min then
+      min = distance; closest_cell = cell
     end
   end
 
@@ -62,12 +60,10 @@ end
 -- picks the right display variant between a charger and its target
 -- 1-9 (1 being 0 rad and 9 2π rad)
 local function update_display(charger)
-  local vector = Position.subtract(charger.target.owner.position, charger.base.position)
+  local vector = Position.subtract(charger.base.position, charger.target.owner.position)
   -- y axis is reversed -_-
-  local angle = math.atan2(-vector.y, vector.x)
-  if angle < 0 then angle = angle + math.pi * 2 end
-
-  charger.display.graphics_variation = math.floor((angle * 4)/math.pi + 0.5) + 1
+  local orientation = (math.atan2(-vector.y, vector.x) / math.pi + 1) / 2
+  charger.display.graphics_variation = math.floor(orientation * 8 + 0.5) % 8 + 2
 end
 
 -- adds a cell as a charger's target (and hence pairs it with any respective node)
@@ -100,7 +96,7 @@ local function enqueue_charger(charger)
 end
 
 -- Removes a charger from a node, if it's there (complexity for debug purposes)
--- requeue: adds the charger to the unpaired list
+-- requeue: if true adds the charger to the unpaired list
 local function unpair_charger(charger, requeue)
   local node = get_node(charger.target)
   if node then
@@ -108,19 +104,16 @@ local function unpair_charger(charger, requeue)
     print("removed charger "..charger.id.." from node "..node.id)
     charger.target = nil
   end
-  if charger.display and charger.display.valid then charger.display.graphics_variation = 10 end
+  if charger.display and charger.display.valid then charger.display.graphics_variation = 1 end
 
   if requeue then enqueue_charger(charger) end
 end
 
+
 -- return: true if a pair node was found
 local function pair_charger(charger)
-  -- ignore already (valid) targets
-  if charger.target and charger.target.cell.valid then return
-  else
-    unpair_charger(charger)
-    print("re-pairing charger "..charger.id)
-  end
+  -- ignore already those with targets
+  if charger.target then return end
 
   local network = charger.base.surface.find_logistic_network_by_position(charger.base.position, charger.base.force)
 
@@ -159,7 +152,7 @@ local function on_built_charger(entity)
       force = entity.force
     }
     charger.display.destructible = false
-    charger.display.graphics_variation = 10 -- none
+    charger.display.graphics_variation = 1 -- none
 
     charger.warning = entity.surface.create_entity {
       name = "charge_transmission-charger-warning",
@@ -186,6 +179,8 @@ local function on_mined_charger(entity)
         return
       end
 
+      unpair_charger(charger)
+
       -- remove composite partners
       for _, component in pairs({charger.interface, charger.display, charger.warning}) do
         if component and component.valid then
@@ -193,7 +188,6 @@ local function on_mined_charger(entity)
         end
       end
 
-      unpair_charger(charger)
       chargers[charger.id] = nil
     else
       log "Abnormal destruction... what shall we do?"
@@ -330,8 +324,8 @@ end
 -- *  add more .valid checks
 script.on_event(defines.events.on_tick, function(event)
   -- charger re-pairing
-  local next_charger
   if not new_chargers[counters.next_charger] then counters.next_charger = nil end
+  local next_charger
   counters.next_charger, next_charger = next(new_chargers, counters.next_charger)
 
   if next_charger then
@@ -340,45 +334,33 @@ script.on_event(defines.events.on_tick, function(event)
         new_chargers[next_charger.id] = nil
       end
     else
-      new_chargers[counters.next_charger] = nil
+      new_chargers[next_charger.id] = nil
     end
   end
 
   -- before iterating nodes...
   if event.tick%60 == 0 then
     -- register new nodes
-    for _, node in pairs(new_nodes) do
-      if nodes[node.id] then
+    for key, node in pairs(new_nodes) do
+      if nodes[key] then
         -- if the node is already there, move the chargers into it
-        for cid, charger in pairs(node.chargers) do
-          nodes[node.id].chargers[cid] = charger
+        table.merge(nodes[key].chargers, node.chargers)
+        for cid, _ in pairs(node.chargers) do
           print("joined charger "..cid.." into node "..node.id)
         end
       else
-        nodes[node.id] = node
-        -- counters.nodes = counters.nodes + 1
+        nodes[key] = node
         print("activated node "..node.id)
       end
+      new_nodes[key] = nil
     end
 
-    -- clean new nodes list
-    global.new_nodes = {}
-    new_nodes = global.new_nodes
-
-    -- clear invalid nodes
-    for key, node in pairs(nodes) do
-      if not (node.cell.valid and next(node.chargers)) then
-        -- node is invalid: remove node, orphan chargers
-        for _, charger in pairs(node.chargers) do unpair_charger(charger, true) end
-        nodes[key] = nil
-        -- counters.nodes = counters.nodes - 1
-        print("removed node "..node.id)
-        -- print(table_size(nodes))
-      end
-    end
-    counters.node_count = table_size(nodes)
+    -- -- clean new nodes list
+    -- global.new_nodes = {}
+    -- new_nodes = global.new_nodes
 
     -- seed the next iter
+    counters.node_count = table_size(nodes)
     counters.next_node = next(nodes)
   end
 
@@ -400,7 +382,7 @@ script.on_event(defines.events.on_tick, function(event)
     iter = iter + 1
     -- print(event.tick..": processing node "..node.id.." | "..iter.." of "..max.." in "..counters.nodes.." (== "..table_size(nodes)..")")
 
-    if node and node.cell.valid then
+    if node and node.cell.valid and next(node.chargers) then
       -- calculate total available energy
       local n_chargers = 0
       local energy = 0
@@ -410,17 +392,14 @@ script.on_event(defines.events.on_tick, function(event)
       -- retrieve active/useful chargers and total energy buffer
       for key, charger in pairs(node.chargers) do
         if charger.base.valid then
-          local base = charger.base
-          local warning = charger.warning
-          local interface = charger.interface
-          interface.power_usage = 0
+          charger.interface.power_usage = 0
           -- TODO: energy_usage is a constant, refactor away
-          if base.energy >= base.prototype.energy_usage then
-            energy = energy + interface.energy
+          if charger.base.energy >= charger.base.prototype.energy_usage then
+            energy = energy + charger.interface.energy
             n_chargers = n_chargers + 1
           else
             -- Reset out of overtaxed (because it's the base that is dying, not the antenna)
-            warning.graphics_variation = 1
+            charger.warning.graphics_variation = 1
           end
         else
           node.chargers[key] = nil
@@ -432,24 +411,41 @@ script.on_event(defines.events.on_tick, function(event)
         -- check total energy cost
         -- local bots = 0
         local constrobots, logibots
+        local area = Position.expand_to_area(node.cell.owner.position, math.max(node.cell.logistic_radius, node.cell.construction_radius))
         constrobots = node.cell.owner.surface.find_entities_filtered {
-          area = node.area,
+          area = area,
           force = node.cell.owner.force,
           type = "construction-robot"
         }
         logibots = node.cell.owner.surface.find_entities_filtered {
-          area = node.area,
+          area = area,
           force = node.cell.owner.force,
           type = "logistic-robot"
         }
 
         if #constrobots + #logibots > 0 then
+          local limits = {}
           local modifier = 1 + node.cell.owner.force.worker_robots_battery_modifier
-          for bid=1,#constrobots + #logibots do
-            local bot
-            if bid <= #constrobots then bot = constrobots[bid]
-            else bot = logibots[bid - #constrobots] end
-            local max_energy = (bot_max[bot.name] or 0) * modifier
+          for key, max_energy in pairs(bot_max) do
+            limits[key] = max_energy * modifier
+          end
+
+          for id = 1, #constrobots do
+            local bot = constrobots[id]
+            local max_energy = limits[bot.name]
+
+            if bot and bot.valid and bot.energy < max_energy then
+              cost = cost + (max_energy - bot.energy) * 1.5
+              if cost < energy then
+                bot.energy = max_energy
+                -- bots = bots + 1
+              else break end
+            end
+          end
+
+          for id = 1, #logibots do
+            local bot = logibots[id]
+            local max_energy = limits[bot.name]
 
             if bot and bot.valid and bot.energy < max_energy then
               cost = cost + (max_energy - bot.energy) * 1.5
@@ -488,6 +484,13 @@ script.on_event(defines.events.on_tick, function(event)
           end
         end
       end
+    elseif node then
+      -- node is invalid (either cell is dead or no chargers)
+      -- remove node, orphan chargers
+      for _, charger in pairs(node.chargers) do unpair_charger(charger, true) end
+      nodes[node.id] = nil
+      -- counters.nodes = counters.nodes - 1
+      print("removed node "..node.id)
     end
 
     counters.next_node = next(nodes, counters.next_node)
@@ -523,19 +526,21 @@ local function is_chargeable_bot(prototype)
 end
 
 local function get_bots_info()
-  local max_energies = {}
+  local max_energy = {}
 
   for _, prototype in pairs(game.entity_prototypes) do
     if prototype.type == "logistic-robot" or prototype.type == "construction-robot" then
-      if is_chargeable_bot(prototype) then
-        max_energies[prototype.name] = prototype.max_energy
-      end
+      max_energy[prototype.name] = (is_chargeable_bot(prototype) and prototype.max_energy) or 0
+
+      -- if is_chargeable_bot(prototype) then
+      --   max_energies[prototype.name] = prototype.max_energy
+      -- end
     end
   end
 
-  log(serpent.block(max_energies))
+  log(serpent.block(max_energy))
 
-  return max_energies
+  return max_energy
 end
 
 local function init_global()
