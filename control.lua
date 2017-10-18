@@ -295,7 +295,7 @@ end)
 
 --[[ ON_TICK ]]
 
-local function getEffectivityBonus(charger)
+local function get_charger_consumption(charger)
   -- returns the consumption bonus/penalty from the charger
   if not settings.startup["charge_transmission-use-modules"].value then
     return 1.5
@@ -304,7 +304,7 @@ local function getEffectivityBonus(charger)
   -- split the energetic debt along time
   -- add module effect
   local consumption = 1
-  local effectivity = charger.effectivity
+  local effectivity = charger.base.prototype.distribution_effectivity
   local modules = charger.base.get_module_inventory()
   for i=1,#modules do
     if modules[i] and modules[i].valid_for_read and modules[i].prototype.module_effects.consumption then
@@ -387,7 +387,6 @@ script.on_event(defines.events.on_tick, function(event)
       local n_chargers = 0
       local energy = 0
       local cost = 0
-      local debt = 0
 
       -- retrieve active/useful chargers and total energy buffer
       for key, charger in pairs(node.chargers) do
@@ -395,7 +394,8 @@ script.on_event(defines.events.on_tick, function(event)
           charger.interface.power_usage = 0
           -- TODO: energy_usage is a constant, refactor away
           if charger.base.energy >= charger.base.prototype.energy_usage then
-            energy = energy + charger.interface.energy
+            charger.consumption = get_charger_consumption(charger)
+            energy = energy + charger.interface.energy * 30 / charger.consumption
             n_chargers = n_chargers + 1
           else
             -- Reset out of overtaxed (because it's the base that is dying, not the antenna)
@@ -435,11 +435,9 @@ script.on_event(defines.events.on_tick, function(event)
             local max_energy = limits[bot.name]
 
             if bot and bot.valid and bot.energy < max_energy then
-              cost = cost + (max_energy - bot.energy) * 1.5
-              if cost < energy then
-                bot.energy = max_energy
-                -- bots = bots + 1
-              else break end
+              cost = cost + max_energy - bot.energy
+              bot.energy = max_energy
+              if cost >= energy then break end
             end
           end
 
@@ -448,33 +446,35 @@ script.on_event(defines.events.on_tick, function(event)
             local max_energy = limits[bot.name]
 
             if bot and bot.valid and bot.energy < max_energy then
-              cost = cost + (max_energy - bot.energy) * 1.5
-              if cost < energy then
-                bot.energy = max_energy
-                -- bots = bots + 1
-              else break end
+              cost = cost + max_energy - bot.energy
+              bot.energy = max_energy
+              if cost >= energy then break end
             end
           end
 
           -- split the energetic debt between the chargers and time
-          debt = cost / (60 * n_chargers)
+          -- debt = cost / (60 * n_chargers)
         end
         -- print("debt: "..debt..", cost: "..cost..", energy: "..energy..", bots: "..bots)
       end
-
 
       -- set power cost on the interfaces
       -- TODO: there's two constants down there, we should cache them!
       for _, charger in pairs(node.chargers) do
         if charger.base.energy >= charger.base.prototype.energy_usage then
-          charger.interface.power_usage = debt
+          local fraction = (charger.interface.energy * 30 / charger.consumption) / energy
+          local debt = cost * fraction / 60
+          charger.interface.power_usage = debt * charger.consumption
+
+          -- local simplified = (cost * charger.interface.energy) / (2 * energy)
+          -- print(simplified.." ==? "..charger.interface.power_usage)
 
           -- state machine:
           --   1: neutral, don't display
           --   2: active, don't display
           --   3: active, display (toggled below)
           -- 1->2, 2/3->1
-          if cost > energy or debt > charger.interface.electric_input_flow_limit then
+          if cost > energy or charger.interface.power_usage > charger.interface.electric_input_flow_limit then
             -- log(cost..">"..energy.." : "..debt..">"..charger.interface.electric_input_flow_limit)
             if charger.warning.graphics_variation == 1 then
               charger.warning.graphics_variation = 2
@@ -484,6 +484,7 @@ script.on_event(defines.events.on_tick, function(event)
           end
         end
       end
+
     elseif node then
       -- node is invalid (either cell is dead or no chargers)
       -- remove node, orphan chargers

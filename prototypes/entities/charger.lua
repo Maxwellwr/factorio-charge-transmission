@@ -48,16 +48,16 @@ local entity_interface = {
 
   energy_source = {
     type = "electric",
-    buffer_capacity = "200MJ",
+    buffer_capacity = "6MJ",
     usage_priority = "secondary-input",
-    input_flow_limit = "24MW",
+    input_flow_limit = "12MW",
     output_flow_limit = "0W",
     drain = "0W",
   },
   energy_production = "0W",
   energy_usage = "0W",
 
-  enable_gui = false,
+  enable_gui = true,
   allow_copy_paste = false,
 
   picture = Prototype.empty_sprite()
@@ -138,14 +138,14 @@ local entity_base = {
   -- TODO: Better base graphics, yes.
   base_picture = {
     filename = "__ChargeTransmission__/graphics/entities/charger/base.png",
-    width = 64,
-    height = 64,
-    shift = util.by_pixel(4, -9),
+    width = 58,
+    height = 65,
+    shift = util.by_pixel(1, -8.5),
     hr_version = {
       filename = "__ChargeTransmission__/graphics/entities/charger/hr/base.png",
-      width = 128,
-      height = 128,
-      shift = util.by_pixel(4, -9),
+      width = 116,
+      height = 130,
+      shift = util.by_pixel(1, -8.5),
       scale = 0.5
     }
   },
@@ -168,12 +168,8 @@ local entity_base = {
       scale = 0.5
     }
   },
-  -- animation_shadow = Prototype.empty_animation(6),
-  radius_visualisation_picture = {
-    filename = "__base__/graphics/entity/beacon/beacon-radius-visualization.png",
-    width = 10,
-    height = 10
-  },
+  -- animation_shadow = table.deepcopy(data.raw.beacon.beacon.animation_shadow),
+  radius_visualisation_picture = Prototype.empty_sprite(),
 
   vehicle_impact_sound =  { filename = "__base__/sound/car-metal-impact.ogg", volume = 0.65 },
 }
