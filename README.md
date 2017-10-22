@@ -15,14 +15,14 @@ Enter the **Bot Charger**, the only entity added by this mod, which works exactl
 
 ## How to use
 
-0. Research Charge Transmission;
+1. Research Charge Transmission;
 1. Place **Bot Charger** near the desired roboport;
-   - Reassign the target, if necessary, by selecting its antenna and rotating it (pressing <kbd>R</kbd>);
+   - Reassign the target, if necessary, by selecting its antenna and rotating it (pressing R);
 1. You're done.
 
 From now on, the charger will scan over that roboport's *construction range* and recharge any bots inside it every second or so.
 
-Chargers connected to the same roboport will share the load between themselves; this is important as each charger has a limited energy input amount and can only fulfill so many robots (see overtaxing below).
+Chargers connected to the same roboport will share the load between themselves; this is important as each charger has a limited energy input amount and can only fulfil so many robots (see overtaxing below).
 
 ### Reassigning a target roboport
 
@@ -30,7 +30,7 @@ Chargers will try to pair up with the closest roboport by default, preferring ro
 
 ![roboport with picker arrow because of highlighted antenna](https://media.giphy.com/media/l0IymrhGnuE4MhTd6/giphy.gif)
 
-To change the target roboport, rotate the charger's antenna with <kbd>R</kbd> until the arrow points at your preferred spot. A roboport will only be a possible target if it has the charger as its neighbour (in other words, if it is inside its logistic range).
+To change the target roboport, rotate the charger's antenna with R until the arrow points at your preferred spot. A roboport will only be a possible target if it has the charger as its neighbour (in other words, if it is inside its logistic range).
 
 ## Power usage
 
@@ -40,11 +40,9 @@ To know why a charger is requiring that much power, you first must know how much
 E(bot) = drain + speed * movement cost * worker speed bonus
 ```
 
-
-
 - *Drain* and *movement cost* can be gathered from a robot's tooltip, they're the `3kW + 5kJ/m`, respectively.
 - *Worker speed bonus* can be found from the Bonuses tab (warning: `+300%` would mean the total is `400%`).
-- *Speed* isn't directly said ingame but for vanilla it's `3m/s` for logistic robots and `3.6m/s` for construction robots.
+- *Speed* isn't directly said in-game but for vanilla it's `3m/s` for logistic robots and `3.6m/s` for construction robots.
 
 This means that the more *Worker Robot Speed* research obtained the higher a bot's energy maintenance will be, and that construction robots are always slightly more power hungry.
 
@@ -84,11 +82,11 @@ The second and third issues are usually telegraphed in-game by alerts. To verify
 
 ### How does LuaForce::worker\_robots\_battery\_modifier affect chargers
 
-In short, it does not! It only changes the maximum charge a bot can have, with average/over time consumption staying the same. Usually what happens is bigger use spikes, if any, but the same consumption under regular circunstances stays the same on a factory faction with or without the modifier. And the modifier is really useful to alleviate charging headaches to start with...
+In short, it does not! It only changes the maximum charge a bot can have, with average/over time consumption staying the same. Usually what happens is bigger use spikes, if any, but the same consumption under regular circumstances stays the same on a factory faction with or without the modifier. And the modifier is really useful to alleviate charging headaches to start with...
 
 ### I found a bug! Please fix it
 
-Sure! But I'll need a bug report for it. Describing what you were doing (+ steps to replicate the issue), what other mods you have installed, what version of this mod you have and if possible, sending me your bugged savegame. All these steps will make your issue much easier to diagnose and to be fixed.
+Sure! But I'll need a bug report for it. Describing what you were doing (+ steps to replicate the issue), what other mods you have installed, what version of this mod you have and if possible, sending me your bugged save-game. All these steps will make your issue much easier to diagnose and to be fixed.
 
 ***DO NOT post your bug report here on the mod portal***, as it doesn't notify the mod maintainers about new posts or replies so it may take literal weeks for stuff to be noticed. Please, *please*, use the [forum thread](https://forums.factorio.com/viewtopic.php?f=97&t=49853) or [github repo](https://github.com/dustine/ChargeTransmission/issues) to make your bug report.
 
@@ -97,8 +95,10 @@ Sure! But I'll need a bug report for it. Describing what you were doing (+ steps
 Special thanks to:
 
 - Mike C for the concept and not giving up on it
-- desseb for being key on the brainstorming and playtesting
-- Nexela for general code help and workarounds
+- Xterminator for the video spotlight of v0.4
 - [KatherineOfSkies](https://www.youtube.com/channel/UCTIV3KbAvaGEyNjoMoNaGtQ/) for her friendly and welcoming community
+- desseb for being key on the brainstorming and play-testing
+- Nexela for general code help and workarounds
+- eradicator for crucial help with ups optimizations
 
 This mod contains graphics adapted from the icons made by [Roundicons](http://www.flaticon.com/authors/roundicons) and [Gregor Cresnar](http://www.flaticon.com/authors/gregor-cresnar) from [www.flaticon.com](http://www.flaticon.com) under a [CC 3.0 BY](http://creativecommons.org/licenses/by/3.0/) license.
