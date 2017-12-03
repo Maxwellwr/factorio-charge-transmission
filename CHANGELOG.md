@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/). Mostly.
 - Display that points towards the target roboport (doesn't replace the arrow-on-hover, just a quicker indicator at a glance)
 
 ### Changed
+- UPS optimizations with new charging algorithm
 - Charger is now a beacon base, can use effectivity modules (configurable, on by default)
 - New graphics for charger (place-holder)
 - en localization word capitalization

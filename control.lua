@@ -3,14 +3,10 @@ MOD.name = "ChargeTransmission"
 MOD.if_name = "charge-transmission"
 MOD.interfaces = {}
 MOD.commands = {}
-MOD.config = require("config")
+MOD.config = require "control.config"
 
 local Position = require "stdlib/area/position"
--- local Area = require "stdlib/area/area"
--- local Surface = require "stdlib/surface"
--- local Entity = require "stdlib/entity/entity"
 require "stdlib/event/event"
--- require "stdlib/table"
 
 -- Enables Debug mode for new saves
 if MOD.config.DEBUG then
@@ -18,7 +14,7 @@ if MOD.config.DEBUG then
   require("stdlib/debug/quickstart")
 end
 
-local chargers, nodes, free_chargers, active_nodes, new_nodes, counters, robot_max, force_robot_max
+local chargers, nodes, free_chargers, active_nodes, counters
 
 -- returns the node serving this cell
 -- even if the node is enqueued to be added (in new_nodes)
@@ -267,67 +263,7 @@ local function on_dolly_moved_entity(event)
   end
 end
 
-
-Event.register(defines.events.on_built_entity, function(event) on_built_charger(event.created_entity) end)
-  .register(defines.events.on_robot_built_entity, function(event) on_built_charger(event.created_entity) end)
-
--- TODO: the function is kind of a misnomer now, isn't it
-Event.register(defines.events.on_entity_died, function(event) on_mined_charger(event.entity) end)
-  .register(defines.events.on_preplayer_mined_item, function(event) on_mined_charger(event.entity) end)
-  .register(defines.events.on_robot_pre_mined, function(event) on_mined_charger(event.entity) end)
-
-Event.register(defines.events.on_player_rotated_entity, function(event)
-  if event.entity.name == "charge_transmission-charger-interface" then
-    on_player_rotated_charger(event.entity, game.players[event.player_index])
-  end
-end)
-
-Event.register(defines.events.on_selected_entity_changed, function(event)
-  local player = game.players[event.player_index]
-  local current_entity = player.selected
-  if current_entity and current_entity.name == "charge_transmission-charger-interface" then
-    local charger_entity = current_entity.surface.find_entity("charge_transmission-charger-base", current_entity.position)
-    local charger = (charger_entity and chargers[charger_entity.unit_number]) or nil
-
-    if charger and charger.target and charger.target.valid then
-      -- player.update_selected_entity(data.cell.owner.position)
-      player.set_gui_arrow{type="entity", entity=charger.target.owner}
-    end
-  elseif event.last_entity and event.last_entity.name:match("charge_transmission%-charger") then
-    player.clear_gui_arrow()
-  end
-end)
-
 --[[ ON_TICK ]]
-
-local function pre_node_iteration()
-  -- register new nodes
-  for i = #new_nodes, 1, -1 do
-    local node = nodes[new_nodes[i]]
-    if node and not node.active then
-      table.insert(active_nodes, node.id)
-      node.active = true
-      print("activated node "..node.id)
-    end
-    new_nodes[i] = nil
-  end
-
-  -- houseclean active_nodes (and nodes by extension)
-  for i = #active_nodes, 1, -1 do
-    local node = nodes[active_nodes[i]]
-    if not(node and node.cell.valid and next(node.chargers)) then
-      active_nodes[i] = nil -- needed for when #[] == 1
-      active_nodes[i], active_nodes[#active_nodes] = active_nodes[#active_nodes], nil
-
-      if node then
-        -- remove node, orphan chargers
-        for _, charger in pairs(node.chargers) do free_charger(charger, true) end
-        nodes[node.id] = nil
-        print("removed node "..node.id)
-      end
-    end
-  end
-end
 
 local function get_charger_consumption(charger)
   -- returns the consumption bonus/penalty from the charger
@@ -351,16 +287,6 @@ local function get_charger_consumption(charger)
   return math.max(0.2, consumption) * 3
 end
 
-local function get_force_robot_info(force)
-  local max_energy = {}
-
-  for name, energy in pairs(robot_max or global.robot_max) do
-    max_energy[name] = energy * (1 + force.worker_robots_battery_modifier)
-  end
-
-  return max_energy
-end
-
 -- TODO: Optimize this, make it squeaky clean
 -- *  code check
 -- *  add more .valid checks
@@ -380,12 +306,60 @@ local function on_tick(event)
     end
   end
 
-  -- before iterating nodes...
-  if event.tick%60 == 0 then pre_node_iteration() end
+  --[[
+    HEY, FUTURE ME. Here's the stitch.
 
-  local type
-  if event.tick % 60 < 30 then type = "construction-robot"
-  else type = "logistic-robot" end
+    on_tick should have 4 parallel processes:
+    = reassigning chargers
+    - "recharging" robots
+    - refreshing nodes (energy gain/loss)
+      - includes removing invalid nodes
+    = flash the overtaxed markers
+
+    (can't wait for 0.16 to get rid of the last one)
+
+    compared to before, what happened is that i found a way to parallelize robot recharging from node refreshment. this is important because i want X (50 by default) bots recharged PER TICK. but energy gain/loss should be on a metric around 0.5s or 1s. so cycle 2 must be as tight as possible (like cycle 1 was on 0.4).
+
+    how to do it? save how much energy you have left on the node. refresh that ammount on the, uh, refreshing cycle. when you add/remove a charger, invalidate that node (so no extra work gets done that turn, sorry!)
+
+    because of the invalidation mechanic, new_nodes and new_chargers aren't needed anymore, as cycle 2 will never happen on invalidated (read: new or changed) nodes
+
+    but we're not done on the optimization dance. if we want modules, we need to index the effectivity of each module type, for now (0.16 is yearned, again.). we don't need to index max_energy as we're dealing directly with robots that wish to charge, so it's basically swapping one table for another. good thing at least module effect isn't force-based...
+
+    also, need to index *everything* that is related to settings because reading from these takes time. same for prototype stuff, where it can be predicted ahead of time.
+
+    finally, maybe re-reorganize this file once again? the cleanup you did on the folder layout may not have been the best!
+  --]]
+
+  -- before iterating nodes...
+  if event.tick%60 == 0 then
+    -- register new nodes
+    for i = #new_nodes, 1, -1 do
+      local node = nodes[new_nodes[i]]
+      if node and not node.active then
+        table.insert(active_nodes, node.id)
+        node.active = true
+        print("activated node "..node.id)
+      end
+      new_nodes[i] = nil
+    end
+
+    -- houseclean active_nodes (and nodes by extension)
+    for i = #active_nodes, 1, -1 do
+      local node = nodes[active_nodes[i]]
+      if not(node and node.cell.valid and next(node.chargers)) then
+        active_nodes[i] = nil -- needed for when #[] == 1
+        active_nodes[i], active_nodes[#active_nodes] = active_nodes[#active_nodes], nil
+
+        if node then
+          -- remove node, orphan chargers
+          for _, charger in pairs(node.chargers) do free_charger(charger, true) end
+          nodes[node.id] = nil
+          print("removed node "..node.id)
+        end
+      end
+    end
+  end
 
   for i = #active_nodes - event.tick % 30, 1, -1 * 30 do
     local node = nodes[active_nodes[i]]
@@ -416,29 +390,32 @@ local function on_tick(event)
       end
 
       if n_chargers > 0 then
-        -- check total energy cost
-        local limits = get_force_robot_info(node.cell.owner.force)
-        -- TODO: Cache area!!
-        local area = Position.expand_to_area(node.cell.owner.position, math.max(node.cell.logistic_radius, node.cell.construction_radius))
+        for _, bot in pairs(node.cell.to_charge_robots) do
+          if cost >= energy then break end
 
-        local bots = node.cell.owner.surface.find_entities_filtered {
-          area = area,
-          force = node.cell.owner.force,
-          type = type
-        }
-        -- print(node.id..":"..type)
+          local new_bot = node.cell.owner.surface.create_entity {
+            name = bot.name,
+            force = bot.force,
+            position = bot.position,
+          }
 
-        for id = 1, #bots do
-          local bot = bots[id]
-          local max_energy = limits[bot.name]
+          cost = cost + new_bot.energy - bot.energy
 
-          if bot.energy < max_energy then
-            cost = cost + max_energy - bot.energy
-            bot.energy = max_energy
-            if cost >= energy then break end
+          -- transfer inventory (based on stdlib's Inventory)
+          -- bots only have 1-slot sized inventories, so...
+          local stack = bot.get_inventory(defines.inventory.item_main)[1]
+          if stack and stack.valid and stack.valid_for_read then
+            new_bot.get_inventory(defines.inventory.item_main).insert({
+              name = stack.name,
+              count = stack.count,
+              health = stack.health or 1,
+              durability = stack.durability,
+              ammo = stack.prototype.magazine_size and stack.ammo
+            })
           end
+
+          bot.destroy()
         end
-        -- print("debt: "..debt..", cost: "..cost..", energy: "..energy..", bots: "..bots)
       end
 
       -- set power cost on the interfaces
@@ -456,7 +433,7 @@ local function on_tick(event)
 
           charger.interface.power_usage = charger.c_debt + charger.l_debt
 
-          -- local simplified = 
+          -- local simplified =
           -- print(simplified.." ==? "..charger.interface.power_usage)
 
           -- state machine:
@@ -493,36 +470,44 @@ local function on_tick(event)
   end
 end
 
+
+Event.register(defines.events.on_built_entity, function(event) on_built_charger(event.created_entity) end)
+  .register(defines.events.on_robot_built_entity, function(event) on_built_charger(event.created_entity) end)
+
+-- TODO: the function is kind of a misnomer now, isn't it
+Event.register(defines.events.on_entity_died, function(event) on_mined_charger(event.entity) end)
+  .register(defines.events.on_preplayer_mined_item, function(event) on_mined_charger(event.entity) end)
+  .register(defines.events.on_robot_pre_mined, function(event) on_mined_charger(event.entity) end)
+
+-- TODO: these two should really be... moved upwards.
+Event.register(defines.events.on_player_rotated_entity, function(event)
+  if event.entity.name == "charge_transmission-charger-interface" then
+    on_player_rotated_charger(event.entity, game.players[event.player_index])
+  end
+end)
+
+Event.register(defines.events.on_selected_entity_changed, function(event)
+  local player = game.players[event.player_index]
+  local current_entity = player.selected
+  if current_entity and current_entity.name == "charge_transmission-charger-interface" then
+    local charger_entity = current_entity.surface.find_entity("charge_transmission-charger-base", current_entity.position)
+    local charger = (charger_entity and chargers[charger_entity.unit_number]) or nil
+
+    if charger and charger.target and charger.target.valid then
+      -- player.update_selected_entity(data.cell.owner.position)
+      player.set_gui_arrow{type="entity", entity=charger.target.owner}
+    end
+  elseif event.last_entity and event.last_entity.name:match("charge_transmission%-charger") then
+    player.clear_gui_arrow()
+  end
+end)
+
 script.on_event(defines.events.on_tick, on_tick)
 
 
 --[[ MOD INIT/LOAD ]]
 
-local migration_scripts = require("scripts.migrations")
-
--- Automatically blacklists chargeless robots (Creative Mode, Nuclear/Fusion Bots, ...)
-local function is_chargeable_bot(prototype)
-  -- Creative Mode; Nuclear Robots; Jamozed's Fusion Robots
-  return (prototype.energy_per_tick > 0 or prototype.energy_per_move > 0) and prototype.speed_multiplier_when_out_of_energy < 1
-end
-
-local function get_bots_info()
-  local max_energy = {}
-
-  for _, prototype in pairs(game.entity_prototypes) do
-    if prototype.type == "logistic-robot" or prototype.type == "construction-robot" then
-      max_energy[prototype.name] = (is_chargeable_bot(prototype) and prototype.max_energy) or 0
-
-      -- if is_chargeable_bot(prototype) then
-      --   max_energies[prototype.name] = prototype.max_energy
-      -- end
-    end
-  end
-
-  log(serpent.block(max_energy))
-
-  return max_energy
-end
+local migration_scripts = require("control.migrations")
 
 local function init_global()
   global.nodes = global.nodes or {}
@@ -535,11 +520,6 @@ local function init_global()
     next_charger = nil,
     nodes = 0
   }
-  global.force_robot_max = {}
-  global.robot_max = get_bots_info()
-  for name, force in pairs(game.forces) do
-    global.force_robot_max[name] = get_force_robot_info(force)
-  end
 
   global.changed = global.changed or {}
 end
@@ -556,11 +536,8 @@ local function on_load()
   --[[ init local variables ]]
   nodes = global.nodes
   chargers = global.chargers
-  new_nodes = global.new_nodes
   active_nodes = global.active_nodes
   free_chargers = global.free_chargers
-  force_robot_max = global.force_robot_max
-  robot_max = global.robot_max
   counters = global.counters
 end
 
@@ -578,9 +555,6 @@ end)
 script.on_load(on_load)
 
 script.on_configuration_changed(function(event)
-  global.bot_max = get_bots_info()
-  robot_max = global.robot_max
-
   if event.mod_changes["ChargeTransmission"] then
     if not global.changed then global.changed = {} end
     for _, ver in pairs(MOD.migrations) do

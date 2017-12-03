@@ -1,1 +1,1 @@
-require "prototypes.entities.charger"
+require "data.entity-charger"
