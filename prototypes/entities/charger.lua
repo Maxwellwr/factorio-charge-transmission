@@ -12,6 +12,7 @@ local entity_warning = {
   name = "charge-transmission_charger-warning",
   render_layer = "entity-info-icon",
   icon = "__ChargeTransmission__/graphics/entities/charger/transmitter-icon.png",
+  icon_size = 32,
   flags = {"not-on-map"},
   selectable_in_game = false,
   collision_mask = {},
@@ -34,6 +35,7 @@ local entity_transmitter = {
   type = "electric-energy-interface",
   name = "charge-transmission_charger-transmitter",
   icon = "__ChargeTransmission__/graphics/entities/charger/transmitter-icon.png",
+  icon_size = 32,
   flags = {"player-creation", "not-on-map"},
   render_layer = "higher-object-above",
   collision_mask = {},
@@ -72,6 +74,7 @@ local entity_interface = {
   name = "charge-transmission_charger-interface",
   -- TODO: better icon for the interface?
   icons = table.deepcopy(icon),
+  icon_size = 32,
   flags = {"placeable-player", "player-creation"},
   corpse = "medium-remnants",
   minable = {hardness = 0.2, mining_time = 0.5, result = "charge-transmission_charger"},
@@ -142,7 +145,7 @@ local entity_interface = {
       green = {0.78125, 1.53125}
     }
   },
-  circuit_connector_sprites = get_circuit_connector_sprites({0.59375, 1.3125}, nil, 18),
+  circuit_connector_sprites = table.deepcopy(data.raw.roboport.roboport.circuit_connector_sprites),
   circuit_wire_max_distance = 0,
   default_available_logistic_output_signal = {type = "virtual", name = "signal-X"},
   default_total_logistic_output_signal = {type = "virtual", name = "signal-Y"},
@@ -157,6 +160,7 @@ local item = {
   name = "charge-transmission_charger",
   localized_name = {"item-name.charge-transmission_charger"},
   icon = "__ChargeTransmission__/graphics/entities/charger/transmitter-icon.png",
+  icon_size = 32,
   flags = {"goes-to-quickbar"},
   subgroup = "logistic-network",
   order = "c[signal]-a[roboport]",

@@ -267,7 +267,7 @@ Event.register(defines.events.on_robot_built_entity, function(event) on_built_ch
 
 -- TODO: the function is kind of a misnamer now, isn't it
 Event.register(defines.events.on_entity_died, function(event) on_mined_charger(event.entity) end)
-Event.register(defines.events.on_preplayer_mined_item, function(event) on_mined_charger(event.entity) end)
+Event.register(defines.events.on_pre_player_mined_item, function(event) on_mined_charger(event.entity) end)
 Event.register(defines.events.on_robot_pre_mined, function(event) on_mined_charger(event.entity) end)
 
 Event.register(defines.events.on_player_rotated_entity, function(event)
