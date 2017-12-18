@@ -3,9 +3,9 @@
     "version": "0.4.4",
     "title": "Charge Transmission",
     "author": "Dustine",
-    "dependencies": ["base >= 0.15.34"],
+    "dependencies": ["base >= 0.16.0"],
     "description": "Special entities that wirelessly charge bots around them. An idea by Mike C from the KatherineOfSkies community.",
-    "factorio_version": "0.15",
+    "factorio_version": "0.16",
     "homepage": "https://forums.factorio.com/viewtopic.php?f=97&t=49853",
     "repository": "https://github.com/dustine/ChargeTransmission"
 }
