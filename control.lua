@@ -16,7 +16,7 @@ end
 
 local chargers, nodes, free_chargers, active_nodes, counters
 
--- returns the node serving this cell
+-- returns the node serving this cell, or nil
 -- even if the node is enqueued to be added (in new_nodes)
 local function get_node(cell)
   return cell and cell.valid and nodes[cell.owner.unit_number]
@@ -28,9 +28,9 @@ local function get_closest_cell(position, network)
   local closest_cell = network.find_cell_closest_to(position)
 
   -- short-circuit if there's no cell close to (how?) or if it is already a node (score)
-  if not closest_cell or get_node(closest_cell) then return closest_cell end
+  if get_node(closest_cell) then return closest_cell end
 
-  -- so the closest cell is either a node or the one already in closest_cells
+  -- so the closest cell is either a node or the one already in closest_cell
   -- let's find out!
 
   -- get cells that are close enough (include position) and are in a node
