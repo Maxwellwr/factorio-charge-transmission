@@ -1,3 +1,24 @@
 {
-    "lua.targetVersion": "5.2"
+    "lua.targetVersion": "5.2",
+    "cSpell.enabledLanguageIds": [
+        "c",
+        "cpp",
+        "csharp",
+        "go",
+        "handlebars",
+        "javascript",
+        "javascriptreact",
+        "json",
+        "latex",
+        "markdown",
+        "php",
+        "plaintext",
+        "properties",
+        "python",
+        "restructuredtext",
+        "text",
+        "typescript",
+        "typescriptreact",
+        "yml"
+    ]
 }
