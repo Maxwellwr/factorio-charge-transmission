@@ -1,32 +1,24 @@
 {
     "lua.targetVersion": "5.2",
-    "lua.format.indentCount": 2,
-    "cSpell.ignoreWords": [
-        "logibots",
-        "constrobots",
-        "Jamozed's",
-        "preplayer",
-        "color"
-    ],
-    "cSpell.words": [
-        "bot",
-        "cresnar",
-        "deepcopy",
-        "desseb",
-        "effectivity",
-        "flaticon",
-        "ipairs",
-        "math",
-        "metatables",
-        "minable",
-        "nexela",
-        "quickbar",
-        "quickstart",
-        "roboport",
-        "roundicons",
-        "stdlib",
-        "timeout",
-        "wirelessly",
-        "xterminator"
+    "cSpell.enabledLanguageIds": [
+        "c",
+        "cpp",
+        "csharp",
+        "go",
+        "handlebars",
+        "javascript",
+        "javascriptreact",
+        "json",
+        "latex",
+        "markdown",
+        "php",
+        "plaintext",
+        "properties",
+        "python",
+        "restructuredtext",
+        "text",
+        "typescript",
+        "typescriptreact",
+        "yml"
     ]
 }
