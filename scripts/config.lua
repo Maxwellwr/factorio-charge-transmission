@@ -1,5 +1,5 @@
 return {
-  DEBUG = true,
+  DEBUG = false,
   quickstart = {
     mod_name = "ChargeTransmission",
     clear_items = true,

@@ -3,10 +3,11 @@ MOD.name = "ChargeTransmission"
 MOD.if_name = "charge-transmission"
 MOD.interfaces = {}
 MOD.commands = {}
-MOD.config = require "control.config"
+MOD.config = require "scripts/config"
 
 local Position = require "stdlib/area/position"
 require "stdlib/event/event"
+require "stdlib/table"
 
 -- Enables Debug mode for new saves
 if MOD.config.DEBUG then
@@ -485,6 +486,16 @@ script.on_event(defines.events.on_tick, on_tick)
 --                              INIT/LOAD/CONFIG                              --
 --############################################################################--
 
+local function update_constants()
+  global.constants = global.constants or {}
+  constants = global.constants
+
+  constants.distribution_effectivity = game.entity_prototypes["charge_transmission-charger"].distribution_effectivity
+  constants.input_flow_limit = game.entity_prototypes["charge_transmission-charger_interface"].electric_energy_source_prototype.input_flow_limit
+  constants.use_modules = settings.startup["charge_transmission-use-modules"].value
+  constants.robots_limit = settings.global["charge_transmission-robots-limit"].value
+end
+
 local function init_global()
   global.nodes = {}
   global.active_nodes = {}
@@ -497,18 +508,9 @@ local function init_global()
     -- next_node = nil
   }
   global.constants = {}
+  update_constants()
 
   global.changed = {}
-end
-
-local function update_constants()
-  global.constants = global.constants or {}
-  constants = global.constants
-
-  constants.distribution_effectivity = game.entity_prototypes["charge_transmission-charger"].distribution_effectivity
-  constants.input_flow_limit = game.entity_prototypes["charge_transmission-charger_interface"].electric_energy_source_prototype.input_flow_limit
-  constants.use_modules = settings.startup["charge_transmission-use-modules"].value
-  constants.robots_limit = settings.global["charge_transmission-robots-limit"].value
 end
 
 local function on_load()
