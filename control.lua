@@ -310,24 +310,30 @@ end
 -- *  code check
 -- *  add more .valid checks
 local function on_tick(event)
-  --[[ Free Charger Reassignment (1/tick) ]]
-  if not free_chargers[counters.next_charger] then counters.next_charger = nil end
-  local next_charger
-  counters.next_charger, next_charger = next(free_chargers, counters.next_charger)
+  --[[ Free Charger Reassignment (4/s) ]]
+  if event.tick%15 == 0 then
+    if not free_chargers[counters.next_charger] then counters.next_charger = nil end
+    local next_charger
+    counters.next_charger, next_charger = next(free_chargers, counters.next_charger)
 
-  if next_charger then
-    if next_charger.base.valid then
-      if pair_charger(next_charger) then
-        free_chargers[next_charger.id] = nil
-      end
-    else free_chargers[next_charger.id] = nil end
+    if next_charger then
+      if next_charger.base.valid then
+        if pair_charger(next_charger) then
+          free_chargers[next_charger.id] = nil
+        end
+      else free_chargers[next_charger.id] = nil end
+    end
   end
 
   --[[ Robot Recharging (50?/tick) ]]
   local total_robots = constants.robots_limit
-  for i = #active_nodes, 1, -1 do
-    if total_robots <= 0 then break end
-    local node = active_nodes[i]
+  if not(counters.next_node and counters.next_node > 1 and counters.next_node <= #active_nodes) then
+    counters.next_node = #active_nodes
+  end
+  for i = counters.next_node, 1, -1 do
+    counters.next_node = i
+    if total_robots <= 0 then goto end_bots end
+    local node = active_nodes[nodes[i]]
 
     if node and node.active and node.cell.valid then
       local surface = node.cell.owner.surface
@@ -345,6 +351,13 @@ local function on_tick(event)
           position = bot.position,
         }
         new_bot.health = bot.health
+        surface.create_entity {
+          name = "charge_transmission-beam",
+          position = beam_position,
+          source_position = beam_position,
+          target = new_bot,
+          duration = 20,
+        }
         node.cost = node.cost + new_bot.energy - bot.energy
 
         -- transfer inventory (based on stdlib's Inventory)
@@ -359,27 +372,21 @@ local function on_tick(event)
             ammo = stack.prototype.magazine_size and stack.ammo
           })
         end
+
         bot.destroy()
-
-        surface.create_entity {
-          name = "charge_transmission-beam",
-          position = beam_position,
-          source_position = beam_position,
-          target = new_bot,
-          duration = 20,
-        }
-
         total_robots = total_robots - 1
+        if total_robots <= 0 then goto end_bots end
       end
     else
       if node then
         node.active = false
-        print("deactivated node "..node.id)
+        -- print("deactivated node "..node.id)
       end
       active_nodes[i] = nil -- needed for when #[] == 1
       active_nodes[i], active_nodes[#active_nodes] = active_nodes[#active_nodes], nil
     end
   end
+  ::end_bots::
 
   --[[ Node Updating (n%60/tick) ]]
   local tick_nodes = hashed_nodes[event.tick%60]
@@ -443,8 +450,8 @@ local function on_tick(event)
       node.cost = 0
       -- log(serpent.block(node))
       if not node.active then
-        table.insert(active_nodes, node)
-        print("activated node "..node.id)
+        table.insert(active_nodes, node.id)
+        -- print("activated node "..node.id)
         node.active = true
       end
     end

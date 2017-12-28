@@ -24,9 +24,9 @@ local entity_interface = {
 
   energy_source = {
     type = "electric",
-    buffer_capacity = "12MJ",
+    buffer_capacity = "25MJ",
     usage_priority = "secondary-input",
-    input_flow_limit = "6MW",
+    input_flow_limit = "10MW",
     output_flow_limit = "0W",
     drain = "0W",
   },
