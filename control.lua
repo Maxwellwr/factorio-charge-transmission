@@ -92,6 +92,7 @@ local function target_cell(charger, cell)
   local node = get_node(cell)
   if node then
     node.chargers[charger.id] = charger
+    node.active = false
     print("added charger "..charger.id.." to node "..node.id)
   else
     -- new node
@@ -104,9 +105,6 @@ local function target_cell(charger, cell)
     node.chargers[charger.id] = charger
     nodes[node.id] = node
     print("new node "..node.id.." with charger "..charger.id)
-  end
-  if not node.active then
-    table.insert(new_nodes, node.id)
   end
 end
 
@@ -131,7 +129,7 @@ end
 --  Tries to find the closest logistic cell (roboport) and register it
 --   Else, adds it as an unpaired charger
 local function on_built_charger(entity)
-  if entity.name == "charge_transmission-charger-base" then
+  if entity.name == "charge_transmission-charger" then
     local charger = {
       base = entity,
       id = entity.unit_number,
@@ -141,26 +139,19 @@ local function on_built_charger(entity)
     chargers[charger.id] = charger
 
     charger.interface = entity.surface.create_entity {
-      name = "charge_transmission-charger-interface",
+      name = "charge_transmission-charger_interface",
       position = entity.position,
       force = entity.force
     }
     charger.interface.destructible = false
 
     charger.display = entity.surface.create_entity {
-      name = "charge_transmission-charger-display",
+      name = "charge_transmission-charger_display",
       position = entity.position,
       force = entity.force
     }
     charger.display.destructible = false
     charger.display.graphics_variation = 1
-
-    charger.warning = entity.surface.create_entity {
-      name = "charge_transmission-charger-warning",
-      position = entity.position,
-    }
-    charger.warning.destructible = false
-    charger.warning.graphics_variation = 1
 
     -- fixes any overlay issues (not needed any more but it doesn't hurt)
     entity.teleport(entity.position)
@@ -171,7 +162,7 @@ end
 
 local function on_mined_charger(entity)
   if entity.name:find("charge_transmission%-charger") then
-    if entity.name == "charge_transmission-charger-base" then
+    if entity.name == "charge_transmission-charger" then
       local charger = chargers[entity.unit_number]
       if not charger then
         log "Attempted to remove already-dismantled charger"
@@ -183,7 +174,7 @@ local function on_mined_charger(entity)
       free_charger(charger)
 
       -- remove composite partners
-      for _, component in pairs({charger.interface, charger.display, charger.warning}) do
+      for _, component in pairs({charger.interface, charger.display}) do
         if component and component.valid then
           component.destroy()
         end
@@ -199,7 +190,7 @@ end
 
 local function on_player_rotated_charger(interface, player)
   -- print("rotated charger "..charger.unit_number)
-  local charger_entity = interface.surface.find_entity("charge_transmission-charger-base", interface.position)
+  local charger_entity = interface.surface.find_entity("charge_transmission-charger", interface.position)
   local charger = (charger_entity and chargers[charger_entity.unit_number]) or nil
 
   -- require a charger with a valid target
@@ -239,14 +230,14 @@ local function on_dolly_moved_entity(event)
   --]]
 
   if event.moved_entity.name:find("charge_transmission%-charger") then
-    if event.moved_entity.name ~= "charge_transmission-charger-base" then
+    if event.moved_entity.name ~= "charge_transmission-charger" then
       -- nuh huh, only the base can teleport, put that thing back where it came from, or so help me!
       event.moved_entity.teleport(event.start_pos)
     else
       -- move the rest of the composed entity
       local charger = chargers[event.moved_entity.unit_number]
 
-      for _, component in pairs({charger.interface, charger.display, charger.warning}) do
+      for _, component in pairs({charger.interface, charger.display}) do
         if component and component.valid then
           component.teleport(event.moved_entity.position)
         end
@@ -269,22 +260,14 @@ local function get_charger_consumption(charger)
   -- returns the consumption bonus/penalty from the charger
   if not settings.startup["charge_transmission-use-modules"].value then
     return 1.5
+  else
+    -- 300% max over 60 ticks (factor the 3 out)
+    local consumption = (charger.base.effects and charger.base.effects.consumption and charger.base.effects.consumption.value) or 0
+    consumption = consumption * charger.base.prototype.distribution_effectivity
+    -- log(serpent.block(charger.base.effects))
+    -- log("consumption: "..consumption)
+    return math.max(0.2, 1 + consumption) * 3
   end
-
-  -- split the energetic debt along time
-  -- add module effect
-  local consumption = 1
-  local effectivity = charger.base.prototype.distribution_effectivity
-  local modules = charger.base.get_module_inventory()
-  for i=1,#modules do
-    if modules[i] and modules[i].valid_for_read and modules[i].prototype.module_effects.consumption then
-      consumption = consumption + modules[i].prototype.module_effects.consumption.bonus * effectivity
-    end
-  end
-  -- print("loss: "..consumption)
-
-  -- 300% max over 60 ticks (factor the 3 out)
-  return math.max(0.2, consumption) * 3
 end
 
 -- TODO: Optimize this, make it squeaky clean
@@ -314,9 +297,6 @@ local function on_tick(event)
     - "recharging" robots
     - refreshing nodes (energy gain/loss)
       - includes removing invalid nodes
-    = flash the overtaxed markers
-
-    (can't wait for 0.16 to get rid of the last one)
 
     compared to before, what happened is that i found a way to parallelize robot recharging from node refreshment. this is important because i want X (50 by default) bots recharged PER TICK. but energy gain/loss should be on a metric around 0.5s or 1s. so cycle 2 must be as tight as possible (like cycle 1 was on 0.4).
 
@@ -324,7 +304,7 @@ local function on_tick(event)
 
     because of the invalidation mechanic, new_nodes and new_chargers aren't needed anymore, as cycle 2 will never happen on invalidated (read: new or changed) nodes
 
-    but we're not done on the optimization dance. if we want modules, we need to index the effectivity of each module type, for now (0.16 is yearned, again.). we don't need to index max_energy as we're dealing directly with robots that wish to charge, so it's basically swapping one table for another. good thing at least module effect isn't force-based...
+    but we're not done on the optimization dance. we should probably index module effectivity, even if it's not strictly necessary anymore. we don't need to index max_energy as we're dealing directly with robots that wish to charge, so it's basically swapping one table for another. good thing at least module effect isn't force-based...
 
     also, need to index *everything* that is related to settings because reading from these takes time. same for prototype stuff, where it can be predicted ahead of time.
 
@@ -333,18 +313,18 @@ local function on_tick(event)
 
   -- before iterating nodes...
   if event.tick%60 == 0 then
-    -- register new nodes
-    for i = #new_nodes, 1, -1 do
-      local node = nodes[new_nodes[i]]
-      if node and not node.active then
+    -- houseclean active_nodes (and nodes by extension)
+    for id, node in pairs(nodes) do
+      if node and node.cell.valid and not node.active then
         table.insert(active_nodes, node.id)
-        node.active = true
         print("activated node "..node.id)
+        node.active = true
+      elseif not(node and node.cell.valid and next(node.chargers)) then
+        nodes[id] = nil
+        print("removed node "..node.id)
       end
-      new_nodes[i] = nil
     end
 
-    -- houseclean active_nodes (and nodes by extension)
     for i = #active_nodes, 1, -1 do
       local node = nodes[active_nodes[i]]
       if not(node and node.cell.valid and next(node.chargers)) then
@@ -361,14 +341,16 @@ local function on_tick(event)
     end
   end
 
-  for i = #active_nodes - event.tick % 30, 1, -1 * 30 do
+  for i = #active_nodes - event.tick % 20, 1, -1 * 20 do
     local node = nodes[active_nodes[i]]
-    -- print(event.tick..": processing node "..node.id.." | "..iter.." of "..max.." in "..counters.nodes.." (== "..table_size(nodes)..")")
     if node and node.cell.valid then
+      -- print(event.tick..": processing node "..node.id)
       -- calculate total available energy
       local n_chargers = 0
       local energy = 0
       local cost = 0
+
+      local surface = node.cell.owner.surface
 
       -- retrieve active/useful chargers and total energy buffer
       for key, charger in pairs(node.chargers) do
@@ -377,11 +359,14 @@ local function on_tick(event)
           -- TODO: energy_usage is a constant, refactor away
           if charger.base.energy >= charger.base.prototype.energy_usage then
             charger.consumption = get_charger_consumption(charger)
-            energy = energy + charger.interface.energy * 30 / charger.consumption
+            energy = energy + charger.interface.energy / charger.consumption
             n_chargers = n_chargers + 1
-          else
+          -- else
             -- Reset out of overtaxed (because it's the base that is dying, not the antenna)
-            charger.warning.graphics_variation = 1
+            -- if charger.warning then
+            --   if charger.warning.valid then charger.warning.destroy() end
+            --   charger.warning = nil
+            -- end
           end
         else
           node.chargers[key] = nil
@@ -393,11 +378,12 @@ local function on_tick(event)
         for _, bot in pairs(node.cell.to_charge_robots) do
           if cost >= energy then break end
 
-          local new_bot = node.cell.owner.surface.create_entity {
+          local new_bot = surface.create_entity {
             name = bot.name,
             force = bot.force,
             position = bot.position,
           }
+          new_bot.health = bot.health
 
           cost = cost + new_bot.energy - bot.energy
 
@@ -413,8 +399,16 @@ local function on_tick(event)
               ammo = stack.prototype.magazine_size and stack.ammo
             })
           end
-
           bot.destroy()
+
+          surface.create_entity {
+            name = "charge_transmission-beam",
+            position = node.cell.owner.position,
+            target = new_bot,
+            source_position = node.cell.owner.position,
+            duration = 20,
+          }
+          
         end
       end
 
@@ -422,47 +416,25 @@ local function on_tick(event)
       -- TODO: there's two constants down there, we should cache them!
       for _, charger in pairs(node.chargers) do
         if charger.base.energy >= charger.base.prototype.energy_usage then
-          -- local fraction = (charger.interface.energy * 30 / charger.consumption) / energy
-          -- local debt = cost * fraction / 60
-          -- charger.interface.power_usage = debt * charger.consumption
+          local fraction = (charger.interface.energy / charger.consumption) / energy
+          local debt = cost * fraction / 20
+          charger.interface.power_usage = debt * charger.consumption
 
-          local debt = (cost * charger.interface.energy) / (2 * energy)
-
-          if event.tick % 60 < 30 then charger.c_debt = debt
-          else charger.l_debt = debt end
-
-          charger.interface.power_usage = charger.c_debt + charger.l_debt
-
-          -- local simplified =
           -- print(simplified.." ==? "..charger.interface.power_usage)
 
-          -- state machine:
-          --   1: neutral, don't display
-          --   2: active, don't display
-          --   3: active, display (toggled below)
-          -- 1->2, 2/3->1
           if cost > energy or charger.interface.power_usage > charger.interface.electric_input_flow_limit then
             -- log(cost..">"..energy.." : "..debt..">"..charger.interface.electric_input_flow_limit)
-            if charger.warning.graphics_variation == 1 then
-              charger.warning.graphics_variation = 2
+            if not (node.warning and node.warning.valid) then
+              node.warning = surface.create_entity {
+                name = "charge_transmission-warning",
+                position = node.cell.owner.position,
+              }
             end
           else
-            charger.warning.graphics_variation = 1
-          end
-        end
-      end
-    end
-  end
-
-  -- displays the blinking custom warning for overtaxing
-  if event.tick%30 == 0 then
-    for _, n in pairs(nodes) do
-      if n.active then
-        for _, charger in pairs(n.chargers) do
-          local warning = charger.warning
-          if warning and warning.valid and warning.graphics_variation ~= 1 then
-            if event.tick%60 == 0 then warning.graphics_variation = 2
-            else warning.graphics_variation = 3 end
+            if node.warning then
+              if node.warning.valid then node.warning.destroy() end
+              node.warning = nil
+            end
           end
         end
       end
@@ -476,12 +448,12 @@ Event.register(defines.events.on_built_entity, function(event) on_built_charger(
 
 -- TODO: the function is kind of a misnomer now, isn't it
 Event.register(defines.events.on_entity_died, function(event) on_mined_charger(event.entity) end)
-  .register(defines.events.on_preplayer_mined_item, function(event) on_mined_charger(event.entity) end)
+  .register(defines.events.on_pre_player_mined_item, function(event) on_mined_charger(event.entity) end)
   .register(defines.events.on_robot_pre_mined, function(event) on_mined_charger(event.entity) end)
 
 -- TODO: these two should really be... moved upwards.
 Event.register(defines.events.on_player_rotated_entity, function(event)
-  if event.entity.name == "charge_transmission-charger-interface" then
+  if event.entity.name == "charge_transmission-charger_interface" then
     on_player_rotated_charger(event.entity, game.players[event.player_index])
   end
 end)
@@ -489,15 +461,15 @@ end)
 Event.register(defines.events.on_selected_entity_changed, function(event)
   local player = game.players[event.player_index]
   local current_entity = player.selected
-  if current_entity and current_entity.name == "charge_transmission-charger-interface" then
-    local charger_entity = current_entity.surface.find_entity("charge_transmission-charger-base", current_entity.position)
+  if current_entity and current_entity.name == "charge_transmission-charger_interface" then
+    local charger_entity = current_entity.surface.find_entity("charge_transmission-charger", current_entity.position)
     local charger = (charger_entity and chargers[charger_entity.unit_number]) or nil
 
     if charger and charger.target and charger.target.valid then
       -- player.update_selected_entity(data.cell.owner.position)
       player.set_gui_arrow{type="entity", entity=charger.target.owner}
     end
-  elseif event.last_entity and event.last_entity.name:match("charge_transmission%-charger") then
+  elseif event.last_entity and event.last_entity.name == "charge_transmission-charger" then
     player.clear_gui_arrow()
   end
 end)

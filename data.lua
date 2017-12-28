@@ -1,1 +1,3 @@
-require "data.entity-charger"
+require "prototypes.beam"
+require "prototypes.charger"
+require "prototypes.warning"
