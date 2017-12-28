@@ -1,6 +1,6 @@
 {
     "name": "ChargeTransmission",
-    "version": "0.6.0",
+    "version": "0.5.1",
     "title": "Charge Transmission",
     "author": "Dustine",
     "dependencies": ["base >= 0.16.0"],

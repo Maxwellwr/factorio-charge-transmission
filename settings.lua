@@ -8,8 +8,13 @@ data:extend {{
   type = "int-setting",
   name = "charge_transmission-robots-limit",
   setting_type = "runtime-global",
-  default_value = 50,
+  default_value = 25,
   minimum_value = 1,
   order = "charge_transmission-b"
+},{
+  type = "bool-setting",
+  name = "charge_transmission-have-beams",
+  setting_type = "runtime-global",
+  default_value = true
 }}
 
