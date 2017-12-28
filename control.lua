@@ -14,7 +14,7 @@ if MOD.config.DEBUG then
   require("stdlib/debug/quickstart")
 end
 
-local chargers, nodes, free_chargers, active_nodes, counters, constants
+local chargers, free_chargers, nodes, hashed_nodes, active_nodes, counters, constants
 
 --############################################################################--
 --                                   LOGIC                                    --
@@ -76,6 +76,7 @@ local function free_charger(charger, enqueue)
   local node = get_node(charger.target)
   if node then
     node.chargers[charger.id] = nil
+    node.active = false
     print("removed charger "..charger.id.." from node "..node.id)
   end
   charger.target = nil
@@ -108,6 +109,11 @@ local function target_cell(charger, cell)
     }
     node.chargers[charger.id] = charger
     nodes[node.id] = node
+
+    local hash = node.id%60
+    if not hashed_nodes[hash] then hashed_nodes[hash] = {node}
+    else table.insert(hashed_nodes[hash], node) end
+
     print("new node "..node.id.." with charger "..charger.id)
   end
 end
@@ -137,7 +143,7 @@ end
 --  Tries to find the closest logistic cell (roboport) and register it
 --   Else, adds it as an unpaired charger
 local function on_built_charger(event)
-  local entity = event.entity
+  local entity = event.created_entity
 
   if entity.name == "charge_transmission-charger" then
     local charger = {
@@ -281,7 +287,7 @@ local function on_selected_entity_changed(event)
       -- player.update_selected_entity(data.cell.owner.position)
       player.set_gui_arrow{type="entity", entity=charger.target.owner}
     end
-  elseif event.last_entity and event.last_entity.name == "charge_transmission-charger" then
+  elseif event.last_entity and event.last_entity.name:match("charge_transmission%-charger") then
     player.clear_gui_arrow()
   end
 end
@@ -304,7 +310,7 @@ end
 -- *  code check
 -- *  add more .valid checks
 local function on_tick(event)
-  -- one free charger pairing
+  --[[ Free Charger Reassignment (1/tick) ]]
   if not free_chargers[counters.next_charger] then counters.next_charger = nil end
   local next_charger
   counters.next_charger, next_charger = next(free_chargers, counters.next_charger)
@@ -314,153 +320,132 @@ local function on_tick(event)
       if pair_charger(next_charger) then
         free_chargers[next_charger.id] = nil
       end
-    else
-      free_chargers[next_charger.id] = nil
-    end
+    else free_chargers[next_charger.id] = nil end
   end
 
-  --[[
-    HEY, FUTURE ME. Here's the stitch.
+  --[[ Robot Recharging (50?/tick) ]]
+  local total_robots = constants.robots_limit
+  for i = #active_nodes, 1, -1 do
+    if total_robots <= 0 then break end
+    local node = active_nodes[i]
 
-    on_tick should have 4 parallel processes:
-    = reassigning chargers
-    - "recharging" robots
-    - refreshing nodes (energy gain/loss)
-      - includes removing invalid nodes
+    if node and node.active and node.cell.valid then
+      local surface = node.cell.owner.surface
+      local beam_position = node.cell.owner.position
 
-    compared to before, what happened is that i found a way to parallelize robot recharging from node refreshment. this is important because i want X (50 by default) bots recharged PER TICK. but energy gain/loss should be on a metric around 0.5s or 1s. so cycle 2 must be as tight as possible (like cycle 1 was on 0.4).
-
-    how to do it? save how much energy you have left on the node. refresh that ammount on the, uh, refreshing cycle. when you add/remove a charger, invalidate that node (so no extra work gets done that turn, sorry!)
-
-    because of the invalidation mechanic, new_nodes and new_chargers aren't needed anymore, as cycle 2 will never happen on invalidated (read: new or changed) nodes
-
-    but we're not done on the optimization dance. we should probably index module effectivity, even if it's not strictly necessary anymore. we don't need to index max_energy as we're dealing directly with robots that wish to charge, so it's basically swapping one table for another. good thing at least module effect isn't force-based...
-
-    also, need to index *everything* that is related to settings because reading from these takes time. same for prototype stuff, where it can be predicted ahead of time.
-
-    finally, maybe re-reorganize this file once again? the cleanup you did on the folder layout may not have been the best!
-  --]]
-
-  -- before iterating nodes...
-  if event.tick%60 == 0 then
-    -- houseclean active_nodes (and nodes by extension)
-    for id, node in pairs(nodes) do
-      if node and node.cell.valid and not node.active then
-        table.insert(active_nodes, node.id)
-        print("activated node "..node.id)
-        node.active = true
-      elseif not(node and node.cell.valid and next(node.chargers)) then
-        nodes[id] = nil
-        print("removed node "..node.id)
-      end
-    end
-
-    for i = #active_nodes, 1, -1 do
-      local node = nodes[active_nodes[i]]
-      if not(node and node.cell.valid and next(node.chargers)) then
-        active_nodes[i] = nil -- needed for when #[] == 1
-        active_nodes[i], active_nodes[#active_nodes] = active_nodes[#active_nodes], nil
-
-        if node then
-          -- remove node, orphan chargers
-          for _, charger in pairs(node.chargers) do free_charger(charger, true) end
-          nodes[node.id] = nil
-          print("removed node "..node.id)
+      for _, bot in pairs(node.cell.to_charge_robots) do
+        if node.cost >= node.energy then
+          node.active = false
+          break
         end
+
+        local new_bot = surface.create_entity {
+          name = bot.name,
+          force = bot.force,
+          position = bot.position,
+        }
+        new_bot.health = bot.health
+        node.cost = node.cost + new_bot.energy - bot.energy
+
+        -- transfer inventory (based on stdlib's Inventory)
+        -- bots only have 1-slot sized inventories, so...
+        local stack = bot.get_inventory(defines.inventory.item_main)[1]
+        if stack and stack.valid and stack.valid_for_read then
+          new_bot.get_inventory(defines.inventory.item_main).insert({
+            name = stack.name,
+            count = stack.count,
+            health = stack.health or 1,
+            durability = stack.durability,
+            ammo = stack.prototype.magazine_size and stack.ammo
+          })
+        end
+        bot.destroy()
+
+        surface.create_entity {
+          name = "charge_transmission-beam",
+          position = beam_position,
+          source_position = beam_position,
+          target = new_bot,
+          duration = 20,
+        }
+
+        total_robots = total_robots - 1
       end
+    else
+      if node then
+        node.active = false
+        print("deactivated node "..node.id)
+      end
+      active_nodes[i] = nil -- needed for when #[] == 1
+      active_nodes[i], active_nodes[#active_nodes] = active_nodes[#active_nodes], nil
     end
   end
 
-  for i = #active_nodes - event.tick % 20, 1, -1 * 20 do
-    local node = nodes[active_nodes[i]]
-    if node and node.cell.valid then
-      -- print(event.tick..": processing node "..node.id)
-      -- calculate total available energy
+  --[[ Node Updating (n%60/tick) ]]
+  local tick_nodes = hashed_nodes[event.tick%60]
+  if not tick_nodes then
+    hashed_nodes[event.tick%60] = {}
+    tick_nodes = hashed_nodes[event.tick%60]
+  end
+
+  for i = #tick_nodes, 1, -1 do
+    local node = tick_nodes[i]
+    -- housecleaning
+    if not(node and node.cell.valid and next(node.chargers)) then
+      if node then
+        -- remove node, orphan chargers
+        for _, charger in pairs(node.chargers) do free_charger(charger, true) end
+        if node.warning and node.warning.valid then node.warning.destroy() end
+        node.active = false
+      end
+      nodes[node.id] = nil
+      table.remove(tick_nodes, i)
+      print("removed node "..node.id)
+    else
       local n_chargers = 0
       local energy = 0
-      local cost = 0
 
-      local surface = node.cell.owner.surface
+      node.energy = node.energy or 0
+      node.cost = node.cost or 0
 
-      -- retrieve active/useful chargers and total energy buffer
       for key, charger in pairs(node.chargers) do
-        if charger.base.valid then
-          charger.interface.power_usage = 0
-          -- TODO: energy_usage is a constant, refactor away
-          if charger.base.energy >= charger.base.prototype.energy_usage then
-            charger.consumption = get_charger_consumption(charger)
-            energy = energy + charger.interface.energy / charger.consumption
-            n_chargers = n_chargers + 1
-          end
+        if charger.base.valid and charger.interface.valid then
+          -- set cost
+          charger.interface.power_usage = (charger.fraction and node.cost * (charger.fraction / node.energy) / 60) or 0
+          n_chargers = n_chargers + 1
+
+          -- reset charger
+          charger.consumption = get_charger_consumption(charger)
+          charger.fraction = charger.interface.energy
+          energy = energy + charger.fraction / charger.consumption
         else
           node.chargers[key] = nil
           print("cleaned invalid charger "..key.." (== "..charger.id..") from node "..node.id)
         end
       end
 
-      if n_chargers > 0 then
-        for _, bot in pairs(node.cell.to_charge_robots) do
-          if cost >= energy then break end
-
-          local new_bot = surface.create_entity {
-            name = bot.name,
-            force = bot.force,
-            position = bot.position,
-          }
-          new_bot.health = bot.health
-
-          cost = cost + new_bot.energy - bot.energy
-
-          -- transfer inventory (based on stdlib's Inventory)
-          -- bots only have 1-slot sized inventories, so...
-          local stack = bot.get_inventory(defines.inventory.item_main)[1]
-          if stack and stack.valid and stack.valid_for_read then
-            new_bot.get_inventory(defines.inventory.item_main).insert({
-              name = stack.name,
-              count = stack.count,
-              health = stack.health or 1,
-              durability = stack.durability,
-              ammo = stack.prototype.magazine_size and stack.ammo
-            })
-          end
-          bot.destroy()
-
-          surface.create_entity {
-            name = "charge_transmission-beam",
+      -- add the warning if necessary
+      if node.cost > node.energy or node.cost/(n_chargers*60) > constants.input_flow_limit then
+        -- log(cost..">"..energy.." : "..debt..">"..charger.interface.electric_input_flow_limit)
+        if not (node.warning and node.warning.valid) then
+          node.warning = node.cell.owner.surface.create_entity {
+            name = "charge_transmission-warning",
             position = node.cell.owner.position,
-            target = new_bot,
-            source_position = node.cell.owner.position,
-            duration = 20,
           }
-          
         end
+      elseif node.warning then
+        if node.warning.valid then node.warning.destroy() end
+        node.warning = nil
       end
 
-      -- set power cost on the interfaces
-      -- TODO: there's two constants down there, we should cache them!
-      for _, charger in pairs(node.chargers) do
-        if charger.base.energy >= charger.base.prototype.energy_usage then
-          local fraction = (charger.interface.energy / charger.consumption) / energy
-          local debt = cost * fraction / 20
-          charger.interface.power_usage = debt * charger.consumption
-
-          -- print(simplified.." ==? "..charger.interface.power_usage)
-
-          if cost > energy or charger.interface.power_usage > constants.input_flow_limit then
-            -- log(cost..">"..energy.." : "..debt..">"..charger.interface.electric_input_flow_limit)
-            if not (node.warning and node.warning.valid) then
-              node.warning = surface.create_entity {
-                name = "charge_transmission-warning",
-                position = node.cell.owner.position,
-              }
-            end
-          else
-            if node.warning then
-              if node.warning.valid then node.warning.destroy() end
-              node.warning = nil
-            end
-          end
-        end
+      -- reset the node for the next second
+      node.energy = energy
+      node.cost = 0
+      -- log(serpent.block(node))
+      if not node.active then
+        table.insert(active_nodes, node)
+        print("activated node "..node.id)
+        node.active = true
       end
     end
   end
@@ -492,19 +477,18 @@ script.on_event(defines.events.on_tick, on_tick)
 local migration_scripts = require("control.migrations")
 
 local function init_global()
-  global.nodes = global.nodes or {}
-  global.chargers = global.chargers or {}
-  global.new_nodes = global.new_nodes or {}
-  global.active_nodes = global.active_nodes or {}
-  global.free_chargers = global.free_chargers or {}
-  global.counters = global.counters or {
-    next_node = nil,
+  global.nodes = {}
+  global.active_nodes = {}
+  global.hashed_nodes = {}
+  global.chargers = {}
+  global.new_nodes = {}
+  global.free_chargers = {}
+  global.counters = {
     next_charger = nil,
-    nodes = 0
   }
-  global.constants = global.constants or {}
+  global.constants = {}
 
-  global.changed = global.changed or {}
+  global.changed = {}
 end
 
 local function update_constants()
@@ -514,6 +498,7 @@ local function update_constants()
   constants.distribution_effectivity = game.entity_prototypes["charge_transmission-charger"].distribution_effectivity
   constants.input_flow_limit = game.entity_prototypes["charge_transmission-charger_interface"].electric_energy_source_prototype.input_flow_limit
   constants.use_modules = settings.startup["charge_transmission-use-modules"].value
+  constants.robots_limit = settings.global["charge_transmission-robots-limit"].value
 end
 
 local function on_load()
@@ -527,10 +512,12 @@ local function on_load()
 
   --[[ init local variables ]]
   nodes = global.nodes
-  chargers = global.chargers
   active_nodes = global.active_nodes
+  hashed_nodes = global.hashed_nodes
+  chargers = global.chargers
   free_chargers = global.free_chargers
   counters = global.counters
+  constants = global.constants
 end
 
 script.on_init(function ()
@@ -547,6 +534,9 @@ end)
 script.on_load(on_load)
 
 script.on_configuration_changed(function(event)
+  global.active_nodes = {}
+  active_nodes = global.active_nodes
+
   update_constants()
 
   if event.mod_changes["ChargeTransmission"] then
@@ -556,6 +546,13 @@ script.on_configuration_changed(function(event)
         global.changed[ver] = true
       end
     end
+  end
+end)
+
+script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
+  if event.setting == "charge_transmission-robots-limit" then
+    -- update_constants()
+    constants.robots_limit = settings.global["charge_transmission-robots-limit"].value
   end
 end)
 
