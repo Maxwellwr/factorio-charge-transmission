@@ -302,15 +302,14 @@ local function get_charger_consumption(charger)
     return 1.5
   else
     -- 300% max over 60 ticks (factor the 3 out)
-    return math.max(0.2, 1 + ((charger.base.effects and charger.base.effects.consumption and charger.base.effects.consumption.value) or 0) * constants.distribution_effectivity) * 3
+    local consumption = (charger.base.effects and charger.base.effects.consumption and charger.base.effects.consumption.bonus or 0) * constants.distribution_effectivity
+    return math.max(0.2, 1 + consumption) * 3
   end
 end
 
--- TODO: Optimize this, make it squeaky clean
--- *  code check
--- *  add more .valid checks
+-- TODO: Hey so, consumption is general... can't you globalize it? and maybe even disperse the cost in real time?
 local function on_tick(event)
-  --[[ Free Charger Reassignment (4/s) ]]
+  --[[ Free Charger Reassignment (4c/s) ]]
   if event.tick%15 == 0 then
     if not free_chargers[counters.next_charger] then counters.next_charger = nil end
     local next_charger
@@ -325,7 +324,7 @@ local function on_tick(event)
     end
   end
 
-  --[[ Robot Recharging (50?/tick) ]]
+  --[[ Robot Recharging (50?r/tick) ]]
   local total_robots = constants.robots_limit
   if not(counters.next_node and counters.next_node > 1 and counters.next_node <= #active_nodes) then
     counters.next_node = #active_nodes
@@ -333,7 +332,7 @@ local function on_tick(event)
   for i = counters.next_node, 1, -1 do
     counters.next_node = i
     if total_robots <= 0 then goto end_bots end
-    local node = active_nodes[nodes[i]]
+    local node = nodes[active_nodes[i]]
 
     if node and node.active and node.cell.valid then
       local surface = node.cell.owner.surface
@@ -342,6 +341,8 @@ local function on_tick(event)
       for _, bot in pairs(node.cell.to_charge_robots) do
         if node.cost >= node.energy then
           node.active = false
+          active_nodes[i] = nil -- needed for when #[] == 1
+          active_nodes[i], active_nodes[#active_nodes] = active_nodes[#active_nodes], nil
           break
         end
 
@@ -350,7 +351,7 @@ local function on_tick(event)
           force = bot.force,
           position = bot.position,
         }
-        new_bot.health = bot.health
+        -- new_bot.health = bot.health
         surface.create_entity {
           name = "charge_transmission-beam",
           position = beam_position,
@@ -380,7 +381,7 @@ local function on_tick(event)
     else
       if node then
         node.active = false
-        -- print("deactivated node "..node.id)
+        print("deactivated node "..node.id)
       end
       active_nodes[i] = nil -- needed for when #[] == 1
       active_nodes[i], active_nodes[#active_nodes] = active_nodes[#active_nodes], nil
@@ -397,7 +398,7 @@ local function on_tick(event)
 
   for i = #tick_nodes, 1, -1 do
     local node = tick_nodes[i]
-    -- housecleaning
+    -- housecleaning (remove invalid node)
     if not(node and node.cell.valid and next(node.chargers)) then
       if node then
         -- remove node, orphan chargers
@@ -414,6 +415,7 @@ local function on_tick(event)
 
       node.energy = node.energy or 0
       node.cost = node.cost or 0
+      -- local consumption = 0
 
       for key, charger in pairs(node.chargers) do
         if charger.base.valid and charger.interface.valid then
@@ -422,6 +424,7 @@ local function on_tick(event)
           n_chargers = n_chargers + 1
 
           -- reset charger
+          -- consumption = consumption + get_charger_consumption(charger)
           charger.consumption = get_charger_consumption(charger)
           charger.fraction = charger.interface.energy
           energy = energy + charger.fraction / charger.consumption
@@ -431,9 +434,10 @@ local function on_tick(event)
         end
       end
 
+      -- node.consumption = consumption / n_chargers
+
       -- add the warning if necessary
       if node.cost > node.energy or node.cost/(n_chargers*60) > constants.input_flow_limit then
-        -- log(cost..">"..energy.." : "..debt..">"..charger.interface.electric_input_flow_limit)
         if not (node.warning and node.warning.valid) then
           node.warning = node.cell.owner.surface.create_entity {
             name = "charge_transmission-warning",
@@ -451,7 +455,7 @@ local function on_tick(event)
       -- log(serpent.block(node))
       if not node.active then
         table.insert(active_nodes, node.id)
-        -- print("activated node "..node.id)
+        print("activated node "..node.id)
         node.active = true
       end
     end
@@ -478,20 +482,19 @@ Event.register(defines.events.on_selected_entity_changed, on_selected_entity_cha
 script.on_event(defines.events.on_tick, on_tick)
 
 --############################################################################--
---                       INIT/LOAD/CONFIGURATION CHANGE                       --
+--                              INIT/LOAD/CONFIG                              --
 --############################################################################--
-
-local migration_scripts = require("control.migrations")
 
 local function init_global()
   global.nodes = {}
   global.active_nodes = {}
   global.hashed_nodes = {}
   global.chargers = {}
-  global.new_nodes = {}
+
   global.free_chargers = {}
   global.counters = {
-    next_charger = nil,
+    -- next_charger = nil,
+    -- next_node = nil
   }
   global.constants = {}
 
@@ -540,12 +543,85 @@ end)
 
 script.on_load(on_load)
 
-script.on_configuration_changed(function(event)
+script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
+  if event.setting == "charge_transmission-robots-limit" then
+    -- update_constants()
+    constants.robots_limit = settings.global["charge_transmission-robots-limit"].value
+  end
+end)
+
+--------------------------------------------------------------------------------
+--                                 MIGRATIONS                                 --
+--------------------------------------------------------------------------------
+
+MOD.migrations = {"0.3.2", "0.5.0"}
+
+local Entity = require "stdlib/entity/entity"
+
+local migration_scripts = {}
+migration_scripts["0.3.2"] = function ()
+  -- remove is_charged
+  global.is_charged = nil
+
+  -- make all chargers follow the new spec
+  local function reset_charger(charger)
+    local transmitter = Entity.get_data(charger).transmitter
+    if transmitter then
+      transmitter.electric_input_flow_limit = transmitter.prototype.electric_energy_source_prototype.input_flow_limit
+    end
+  end
+
+  for _, charger in pairs(global.unpaired) do
+    reset_charger(charger)
+  end
+
+  for _, node in pairs(global.nodes) do
+    for _, charger in pairs(node.chargers) do
+    reset_charger(charger)
+    end
+  end
+
+  log("CT 0.3.2 migration applied")
+  return true
+end
+migration_scripts["0.5.0"] = function()
+  -- clear global from previous variables
+  global.unpaired = nil
+  global.bot_max = nil
+
+  -- initiate new ones
+  global.nodes = {}
   global.active_nodes = {}
+  global.hashed_nodes = {}
+  global.chargers = {}
+  global.free_chargers = {}
+  global.counters = {}
+  global.constants = {}
+
+  -- init local variables
+  nodes = global.nodes
   active_nodes = global.active_nodes
+  hashed_nodes = global.hashed_nodes
+  chargers = global.chargers
+  free_chargers = global.free_chargers
+  counters = global.counters
+  constants = global.constants
 
-  update_constants()
+  -- reform chargers
+  for _, surface in pairs(game.surfaces) do
+    local entities = surface.find_entities_filtered {
+      name = "charge_transmission-charger"
+    }
+    for _, entity in pairs(entities) do
+      on_built_charger({created_entity = entity})
+    end
+  end
 
+  log("CT 0.5.0 migration applied")
+  return true
+end
+
+script.on_configuration_changed(function(event)
   if event.mod_changes["ChargeTransmission"] then
     if not global.changed then global.changed = {} end
     for _, ver in pairs(MOD.migrations) do
@@ -554,13 +630,8 @@ script.on_configuration_changed(function(event)
       end
     end
   end
-end)
 
-script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
-  if event.setting == "charge_transmission-robots-limit" then
-    -- update_constants()
-    constants.robots_limit = settings.global["charge_transmission-robots-limit"].value
-  end
+  update_constants()
 end)
 
 --############################################################################--

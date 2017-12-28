@@ -1,6 +1,6 @@
 {
     "entity": [
-        ["charge-transmission_charger-interface", "charge_transmission-charger-base"]
+        ["charge-transmission_charger-interface", "charge_transmission-charger"]
     ],
     "item": [
         ["charge-transmission_charger", "charge_transmission-charger"]
