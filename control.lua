@@ -14,7 +14,11 @@ if MOD.config.DEBUG then
   require("stdlib/debug/quickstart")
 end
 
-local chargers, nodes, free_chargers, active_nodes, counters
+local chargers, nodes, free_chargers, active_nodes, counters, constants
+
+--############################################################################--
+--                                   LOGIC                                    --
+--############################################################################--
 
 -- returns the node serving this cell, or nil
 -- even if the node is enqueued to be added (in new_nodes)
@@ -124,11 +128,17 @@ local function pair_charger(charger)
   return true
 end
 
+--############################################################################--
+--                                   EVENTS                                   --
+--############################################################################--
+
 -- Finalizes building a charger, doing the following:
 --  Creates the composite unit (radar)
 --  Tries to find the closest logistic cell (roboport) and register it
 --   Else, adds it as an unpaired charger
-local function on_built_charger(entity)
+local function on_built_charger(event)
+  local entity = event.entity
+
   if entity.name == "charge_transmission-charger" then
     local charger = {
       base = entity,
@@ -160,7 +170,9 @@ local function on_built_charger(entity)
   end
 end
 
-local function on_mined_charger(entity)
+local function on_mined_charger(event)
+  local entity = event.entity
+
   if entity.name:find("charge_transmission%-charger") then
     if entity.name == "charge_transmission-charger" then
       local charger = chargers[entity.unit_number]
@@ -188,7 +200,11 @@ local function on_mined_charger(entity)
   end
 end
 
-local function on_player_rotated_charger(interface, player)
+local function on_player_rotated_charger(event)
+  local interface = event.entity
+  if interface.name ~= "charge_transmission-charger_interface" then return end
+  local player = game.players[event.player_index]
+
   -- print("rotated charger "..charger.unit_number)
   local charger_entity = interface.surface.find_entity("charge_transmission-charger", interface.position)
   local charger = (charger_entity and chargers[charger_entity.unit_number]) or nil
@@ -254,19 +270,33 @@ local function on_dolly_moved_entity(event)
   end
 end
 
---[[ ON_TICK ]]
+local function on_selected_entity_changed(event)
+  local player = game.players[event.player_index]
+  local current_entity = player.selected
+  if current_entity and current_entity.name == "charge_transmission-charger_interface" then
+    local charger_entity = current_entity.surface.find_entity("charge_transmission-charger", current_entity.position)
+    local charger = (charger_entity and chargers[charger_entity.unit_number]) or nil
+
+    if charger and charger.target and charger.target.valid then
+      -- player.update_selected_entity(data.cell.owner.position)
+      player.set_gui_arrow{type="entity", entity=charger.target.owner}
+    end
+  elseif event.last_entity and event.last_entity.name == "charge_transmission-charger" then
+    player.clear_gui_arrow()
+  end
+end
+
+--------------------------------------------------------------------------------
+--                                  ON TICK                                   --
+--------------------------------------------------------------------------------
 
 local function get_charger_consumption(charger)
   -- returns the consumption bonus/penalty from the charger
-  if not settings.startup["charge_transmission-use-modules"].value then
+  if not constants.use_modules then
     return 1.5
   else
     -- 300% max over 60 ticks (factor the 3 out)
-    local consumption = (charger.base.effects and charger.base.effects.consumption and charger.base.effects.consumption.value) or 0
-    consumption = consumption * charger.base.prototype.distribution_effectivity
-    -- log(serpent.block(charger.base.effects))
-    -- log("consumption: "..consumption)
-    return math.max(0.2, 1 + consumption) * 3
+    return math.max(0.2, 1 + ((charger.base.effects and charger.base.effects.consumption and charger.base.effects.consumption.value) or 0) * constants.distribution_effectivity) * 3
   end
 end
 
@@ -361,12 +391,6 @@ local function on_tick(event)
             charger.consumption = get_charger_consumption(charger)
             energy = energy + charger.interface.energy / charger.consumption
             n_chargers = n_chargers + 1
-          -- else
-            -- Reset out of overtaxed (because it's the base that is dying, not the antenna)
-            -- if charger.warning then
-            --   if charger.warning.valid then charger.warning.destroy() end
-            --   charger.warning = nil
-            -- end
           end
         else
           node.chargers[key] = nil
@@ -422,7 +446,7 @@ local function on_tick(event)
 
           -- print(simplified.." ==? "..charger.interface.power_usage)
 
-          if cost > energy or charger.interface.power_usage > charger.interface.electric_input_flow_limit then
+          if cost > energy or charger.interface.power_usage > constants.input_flow_limit then
             -- log(cost..">"..energy.." : "..debt..">"..charger.interface.electric_input_flow_limit)
             if not (node.warning and node.warning.valid) then
               node.warning = surface.create_entity {
@@ -442,42 +466,28 @@ local function on_tick(event)
   end
 end
 
+--------------------------------------------------------------------------------
+--                                EVENT HOOKS                                 --
+--------------------------------------------------------------------------------
 
-Event.register(defines.events.on_built_entity, function(event) on_built_charger(event.created_entity) end)
-  .register(defines.events.on_robot_built_entity, function(event) on_built_charger(event.created_entity) end)
+Event.register(defines.events.on_built_entity, on_built_charger)
+  .register(defines.events.on_robot_built_entity, on_built_charger)
 
 -- TODO: the function is kind of a misnomer now, isn't it
-Event.register(defines.events.on_entity_died, function(event) on_mined_charger(event.entity) end)
-  .register(defines.events.on_pre_player_mined_item, function(event) on_mined_charger(event.entity) end)
-  .register(defines.events.on_robot_pre_mined, function(event) on_mined_charger(event.entity) end)
+Event.register(defines.events.on_entity_died, on_mined_charger)
+  .register(defines.events.on_pre_player_mined_item, on_mined_charger)
+  .register(defines.events.on_robot_pre_mined, on_mined_charger)
 
 -- TODO: these two should really be... moved upwards.
-Event.register(defines.events.on_player_rotated_entity, function(event)
-  if event.entity.name == "charge_transmission-charger_interface" then
-    on_player_rotated_charger(event.entity, game.players[event.player_index])
-  end
-end)
+Event.register(defines.events.on_player_rotated_entity, on_player_rotated_charger)
 
-Event.register(defines.events.on_selected_entity_changed, function(event)
-  local player = game.players[event.player_index]
-  local current_entity = player.selected
-  if current_entity and current_entity.name == "charge_transmission-charger_interface" then
-    local charger_entity = current_entity.surface.find_entity("charge_transmission-charger", current_entity.position)
-    local charger = (charger_entity and chargers[charger_entity.unit_number]) or nil
-
-    if charger and charger.target and charger.target.valid then
-      -- player.update_selected_entity(data.cell.owner.position)
-      player.set_gui_arrow{type="entity", entity=charger.target.owner}
-    end
-  elseif event.last_entity and event.last_entity.name == "charge_transmission-charger" then
-    player.clear_gui_arrow()
-  end
-end)
+Event.register(defines.events.on_selected_entity_changed, on_selected_entity_changed)
 
 script.on_event(defines.events.on_tick, on_tick)
 
-
---[[ MOD INIT/LOAD ]]
+--############################################################################--
+--                       INIT/LOAD/CONFIGURATION CHANGE                       --
+--############################################################################--
 
 local migration_scripts = require("control.migrations")
 
@@ -492,8 +502,18 @@ local function init_global()
     next_charger = nil,
     nodes = 0
   }
+  global.constants = global.constants or {}
 
   global.changed = global.changed or {}
+end
+
+local function update_constants()
+  global.constants = global.constants or {}
+  constants = global.constants
+
+  constants.distribution_effectivity = game.entity_prototypes["charge_transmission-charger"].distribution_effectivity
+  constants.input_flow_limit = game.entity_prototypes["charge_transmission-charger_interface"].electric_energy_source_prototype.input_flow_limit
+  constants.use_modules = settings.startup["charge_transmission-use-modules"].value
 end
 
 local function on_load()
@@ -527,6 +547,8 @@ end)
 script.on_load(on_load)
 
 script.on_configuration_changed(function(event)
+  update_constants()
+
   if event.mod_changes["ChargeTransmission"] then
     if not global.changed then global.changed = {} end
     for _, ver in pairs(MOD.migrations) do
@@ -536,3 +558,12 @@ script.on_configuration_changed(function(event)
     end
   end
 end)
+
+--############################################################################--
+--                            INTERFACES/COMMANDS                             --
+--############################################################################--
+
+remote.add_interface(MOD.if_name, MOD.interfaces)
+for name, command in pairs(MOD.commands) do
+  commands.add_command(name, {"command-help."..name}, command)
+end
