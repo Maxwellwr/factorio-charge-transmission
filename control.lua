@@ -324,7 +324,7 @@ local function on_tick(event)
     end
   end
 
-  --[[ Robot Recharging (50?r/tick) ]]
+  --[[ Robot Recharging (25?r/tick) ]]
   local total_robots = constants.robots_limit
   if not(counters.next_node and counters.next_node > 1 and counters.next_node <= #active_nodes) then
     counters.next_node = #active_nodes
@@ -335,60 +335,45 @@ local function on_tick(event)
     local node = nodes[active_nodes[n]]
 
     if node and node.active and node.cell.valid then
-      local beam_position = (constants.have_beams and node.cell.owner.position) or nil
-      local surface = node.cell.owner.surface
+      local owner = node.cell.owner
+      local beam_position = constants.have_beams and owner.position
+      local surface = owner.surface
+      local force = owner.force
+      local temp_force = (force.name ~= "neutral" and "neutral") or "player"
       local bots = node.cell.to_charge_robots
 
-      for b = 1, #bots do
-        local bot = bots[b]
+      for _, bot in pairs(bots) do
         if node.cost >= node.energy then
           node.active = false
-          active_nodes[n] = nil -- needed for when #[] == 1
-          active_nodes[n], active_nodes[#active_nodes] = active_nodes[#active_nodes], nil
+          active_nodes[n] = active_nodes[#active_nodes]
+          active_nodes[#active_nodes] = nil
           break
         end
 
-        local new_bot = surface.create_entity {
-          name = bot.name,
-          force = bot.force,
-          position = bot.position,
-        }
-        -- new_bot.health = bot.health
-        if beam_position then
-          surface.create_entity {
-            name = "charge_transmission-beam",
-            position = beam_position,
-            source_position = beam_position,
-            target = new_bot,
-            duration = 20,
-          }
-        end
-        node.cost = node.cost + new_bot.energy - bot.energy
+        bot.force = temp_force
+        node.cost = node.cost - bot.energy
+        bot.energy = math.huge
+        node.cost = node.cost + bot.energy
+        bot.force = force
 
-        -- transfer inventory (based on stdlib's Inventory)
-        -- bots only have 1-slot sized inventories, so...
-        local stack = bot.get_inventory(defines.inventory.item_main)[1]
-        if stack and stack.valid and stack.valid_for_read then
-          new_bot.get_inventory(defines.inventory.item_main).insert({
-            name = stack.name,
-            count = stack.count,
-            health = stack.health or 1,
-            durability = stack.durability,
-            ammo = stack.prototype.magazine_size and stack.ammo
-          })
-        end
+        if beam_position then surface.create_entity {
+          name = "charge_transmission-beam",
+          position = beam_position,
+          source_position = beam_position,
+          target = bot,
+          duration = 20,
+        } end
 
-        bot.destroy()
+        if total_robots <= 1 then goto end_bots end
         total_robots = total_robots - 1
-        if total_robots <= 0 then goto end_bots end
       end
     else
       if node then
         node.active = false
         -- print("deactivated node "..node.id)
       end
-      active_nodes[n] = nil -- needed for when #[] == 1
-      active_nodes[n], active_nodes[#active_nodes] = active_nodes[#active_nodes], nil
+      active_nodes[n] = active_nodes[#active_nodes]
+      active_nodes[#active_nodes] = nil
     end
   end
   ::end_bots::
