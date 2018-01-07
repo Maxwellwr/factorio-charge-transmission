@@ -28,7 +28,7 @@ local entity_interface = {
     usage_priority = "secondary-input",
     input_flow_limit = "10MW",
     output_flow_limit = "0W",
-    drain = "0W",
+    drain = "612kW",
   },
   energy_production = "0W",
   energy_usage = "0W",
@@ -101,8 +101,9 @@ local entity_base = {
     usage_priority = "primary-input",
     -- input_flow_limit = "4MW",
     -- buffer_capacity = "2MJ",
+    render_no_power_icon = false
   },
-  energy_usage = "314kW",
+  energy_usage = "0kW",
 
   allowed_effects = {"consumption"},
   supply_area_distance = 0,

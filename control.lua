@@ -324,7 +324,7 @@ local function on_tick(event)
     end
   end
 
-  --[[ Robot Recharging (25?r/4??/tick) ]]
+  --[[ Robot Recharging (25?r/10??/tick) ]]
   local total_robots = constants.robots_limit
 
   local step = math.ceil(#active_nodes/constants.nodes_interval)
@@ -400,18 +400,21 @@ local function on_tick(event)
       -- print("removed node "..node.id)
     else
       local energy = 0
+      local cost = 0
 
       node.energy = node.energy or 0
       node.cost = node.cost or 0
-      -- local consumption = 0
 
       for key, charger in pairs(node.chargers) do
         if charger.base.valid and charger.interface.valid then
           -- set cost
-          charger.interface.power_usage = (charger.fraction and node.cost * (charger.fraction / node.energy) / 60) or 0
+          charger.interface.power_usage = 0
+          if node.energy > 0 then
+            charger.interface.energy = charger.interface.energy - node.cost * ((charger.fraction or 0) / node.energy)
+            cost = cost + node.cost * ((charger.fraction or 0) / node.energy)
+          end
 
           -- reset charger
-          -- consumption = consumption + get_charger_consumption(charger)
           charger.consumption = get_charger_consumption(charger)
           charger.fraction = charger.interface.energy
           energy = energy + charger.fraction / charger.consumption
@@ -422,7 +425,7 @@ local function on_tick(event)
       end
 
       -- add the warning if necessary
-      if node.cost > node.energy or node.cost/table_size(node.chargers) > constants.input_flow_limit then
+      if (cost > 0 and not node.active) or (cost/(table_size(node.chargers)*60) > constants.input_flow_limit) then
         if not (node.warning and node.warning.valid) then
           node.warning = node.cell.owner.surface.create_entity {
             name = "charge_transmission-warning",
@@ -477,8 +480,11 @@ local function update_constants()
   constants.input_flow_limit = game.entity_prototypes["charge_transmission-charger_interface"].electric_energy_source_prototype.input_flow_limit
   constants.use_modules = settings.global["charge_transmission-use-modules"].value
   constants.have_beams = settings.global["charge_transmission-have-beams"].value
-  constants.robots_limit = settings.global["charge_transmission-robots-limit"].value
-  constants.nodes_interval = settings.global["charge_transmission-nodes-interval"].value
+  constants.robots_limit = settings.global["charge_transmission-robots-per-tick"].value
+  if constants.robots_limit == 0 then constants.robots_limit = math.huge end
+  constants.nodes_interval = settings.global["charge_transmission-recharges-per-second"].value
+  constants.nodes_interval = math.floor(60/constants.nodes_interval + 0.5)
+  log(constants.nodes_interval)
 end
 
 local function init_global()
