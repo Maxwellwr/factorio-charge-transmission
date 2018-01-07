@@ -350,6 +350,7 @@ local function on_tick(event)
 
         if node.cost >= node.energy then
           bot.energy = bot.energy - (node.cost - node.energy) -- recoup extra spent energy
+          node.cost = node.energy
 
           node.active = false
           active_nodes[n] = active_nodes[#active_nodes]
