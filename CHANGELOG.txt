@@ -4,13 +4,12 @@ Date: 07.01.2018
   Added:
     - Display that points towards the target roboport (doesn't replace the arrow-on-hover, just a quicker indicator at a glance)
     - Charging beams! UPS demanding but cool (can be toggled off)
-
+    - Overtaxed icon now also shows up in the map/as alert
   Changed:
     - UPS optimizations with new charging algorithm (with settings to tweak UPS demand)
     - Charger is now a beacon base, can use effectivity modules (configurable, on by default)
-    - New graphics for charger (place-holder)
+    - New graphics for charger (still a place-holder but a prettier one)
     - en localization word capitalization
-
   Fixed:
     - Blurred overtaxed icon
     - Debug mode wasn't logged if triggered
