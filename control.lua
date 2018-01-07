@@ -187,6 +187,9 @@ local function on_mined_charger(event)
         log "Attempted to remove already-dismantled charger"
 
         -- TODO: making sure the area is *really* clean
+        for _, e in pairs(entity.surface.find_entities_filtered {area = entity.bounding_box}) do
+          if e.name:match("^charge_transmission") then e.destroy() end
+        end
         return
       end
 
@@ -200,8 +203,8 @@ local function on_mined_charger(event)
       end
 
       chargers[charger.id] = nil
-    else
-      log "Abnormal destruction... what shall we do?"
+    -- else
+    --   log "Abnormal destruction... what shall we do?"
     end
   end
 end
@@ -431,6 +434,14 @@ local function on_tick(event)
             name = "charge_transmission-warning",
             position = node.cell.owner.position,
           }
+          for _, player in pairs(node.cell.owner.force.players) do
+            player.add_custom_alert(node.warning, {type="item", name="charge_transmission-warning"},  {"custom-alert.charge_transmission-overtaxed"}, true)
+          end
+        else
+          for _, player in pairs(node.cell.owner.force.players) do
+            player.remove_alert{entity=node.warning}
+            player.add_custom_alert(node.warning, {type="item", name="charge_transmission-warning"},  {"custom-alert.charge_transmission-overtaxed"}, true)
+          end
         end
       elseif node.warning then
         if node.warning.valid then node.warning.destroy() end
@@ -484,7 +495,6 @@ local function update_constants()
   if constants.robots_limit == 0 then constants.robots_limit = math.huge end
   constants.nodes_interval = settings.global["charge_transmission-recharges-per-second"].value
   constants.nodes_interval = math.floor(60/constants.nodes_interval + 0.5)
-  log(constants.nodes_interval)
 end
 
 local function init_global()

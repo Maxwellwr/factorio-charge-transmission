@@ -70,8 +70,6 @@ for i=1,9 do
   })
 end
 
--- log(serpent.block(entity_interface.pictures))
-
 -- TODO: clean this even more, there's a few unnecessary fields that aren't simplified
 local entity_base = {
   type = "beacon",
