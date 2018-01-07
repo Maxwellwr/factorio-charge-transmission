@@ -108,7 +108,7 @@ local entity_base = {
   supply_area_distance = 0,
   distribution_effectivity = 0.5,
   module_specification = {
-    module_slots = (settings.startup["charge_transmission-use-modules"].value and 2) or 0,
+    module_slots = 2,
     module_info_icon_shift = {-0.25, 0.25},
     -- module_info_multi_row_initial_height_modifier = 0.3
   },

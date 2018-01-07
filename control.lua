@@ -324,52 +324,51 @@ local function on_tick(event)
     end
   end
 
-  --[[ Robot Recharging (25?r/tick) ]]
+  --[[ Robot Recharging (25?r/4??/tick) ]]
   local total_robots = constants.robots_limit
-  if not(counters.next_node and counters.next_node > 1 and counters.next_node <= #active_nodes) then
-    counters.next_node = #active_nodes
-  end
-  for n = counters.next_node, 1, -1 do
-    counters.next_node = n
+
+  local step = math.ceil(#active_nodes/constants.nodes_interval)
+  local n_start = #active_nodes - ((event.tick % constants.nodes_interval) * step)
+  local n_stop = n_start - step + 1
+
+  for n = n_start, math.max(1, n_stop), -1 do
     if total_robots <= 0 then goto end_bots end
     local node = nodes[active_nodes[n]]
 
     if node and node.active and node.cell.valid then
-      local owner = node.cell.owner
-      local beam_position = constants.have_beams and owner.position
-      local surface = owner.surface
-      local force = owner.force
-      local temp_force = (force.name ~= "neutral" and "neutral") or "player"
+      local beam_position = constants.have_beams and node.cell.owner.position
+      local surface = node.cell.owner.surface
+      local force = node.cell.owner.force.name
       local bots = node.cell.to_charge_robots
 
       for _, bot in pairs(bots) do
+        node.cost = node.cost - bot.energy
+        bot.energy = math.huge
+        node.cost = node.cost + bot.energy
+        bot.force = force -- setting's a bot force (even its own!) makes it recheck its AI
+        total_robots = total_robots - 1
+
         if node.cost >= node.energy then
+          bot.energy = bot.energy - (node.cost - node.energy) -- recoup extra spent energy
+
           node.active = false
           active_nodes[n] = active_nodes[#active_nodes]
           active_nodes[#active_nodes] = nil
           break
+        elseif beam_position then
+          surface.create_entity {
+            name = "charge_transmission-beam",
+            position = beam_position,
+            source_position = beam_position,
+            target = bot,
+            duration = 20,
+          }
         end
 
-        bot.force = temp_force
-        node.cost = node.cost - bot.energy
-        bot.energy = math.huge
-        node.cost = node.cost + bot.energy
-        bot.force = force
-
-        if beam_position then surface.create_entity {
-          name = "charge_transmission-beam",
-          position = beam_position,
-          source_position = beam_position,
-          target = bot,
-          duration = 20,
-        } end
-
-        if total_robots <= 1 then goto end_bots end
-        total_robots = total_robots - 1
+        if total_robots < 1 then goto end_bots end
       end
     else
-      if node then
-        node.active = false
+      if node then node.active = false
         -- print("deactivated node "..node.id)
       end
       active_nodes[n] = active_nodes[#active_nodes]
@@ -399,7 +398,6 @@ local function on_tick(event)
       table.remove(tick_nodes, i)
       -- print("removed node "..node.id)
     else
-      local n_chargers = 0
       local energy = 0
 
       node.energy = node.energy or 0
@@ -410,7 +408,6 @@ local function on_tick(event)
         if charger.base.valid and charger.interface.valid then
           -- set cost
           charger.interface.power_usage = (charger.fraction and node.cost * (charger.fraction / node.energy) / 60) or 0
-          n_chargers = n_chargers + 1
 
           -- reset charger
           -- consumption = consumption + get_charger_consumption(charger)
@@ -423,10 +420,8 @@ local function on_tick(event)
         end
       end
 
-      -- node.consumption = consumption / n_chargers
-
       -- add the warning if necessary
-      if node.cost > node.energy or node.cost/(n_chargers*60) > constants.input_flow_limit then
+      if node.cost > node.energy or node.cost/table_size(node.chargers) > constants.input_flow_limit then
         if not (node.warning and node.warning.valid) then
           node.warning = node.cell.owner.surface.create_entity {
             name = "charge_transmission-warning",
@@ -441,8 +436,7 @@ local function on_tick(event)
       -- reset the node for the next second
       node.energy = energy
       node.cost = 0
-      -- log(serpent.block(node))
-      if not node.active then
+      if not node.active and node.energy > 0 then
         table.insert(active_nodes, node.id)
         -- print("activated node "..node.id)
         node.active = true
@@ -480,9 +474,10 @@ local function update_constants()
 
   constants.distribution_effectivity = game.entity_prototypes["charge_transmission-charger"].distribution_effectivity
   constants.input_flow_limit = game.entity_prototypes["charge_transmission-charger_interface"].electric_energy_source_prototype.input_flow_limit
-  constants.use_modules = settings.startup["charge_transmission-use-modules"].value
+  constants.use_modules = settings.global["charge_transmission-use-modules"].value
   constants.have_beams = settings.global["charge_transmission-have-beams"].value
   constants.robots_limit = settings.global["charge_transmission-robots-limit"].value
+  constants.nodes_interval = settings.global["charge_transmission-nodes-interval"].value
 end
 
 local function init_global()
@@ -492,11 +487,7 @@ local function init_global()
   global.chargers = {}
 
   global.free_chargers = {}
-  global.counters = {
-    -- next_charger = nil,
-    -- next_node = nil
-  }
-  global.constants = {}
+  global.counters = {}
   update_constants()
 
   global.changed = {}
@@ -524,29 +515,6 @@ end
 script.on_init(function ()
   init_global()
 
-  local surface = game.create_surface("charge_purgatory", {
-    width = 2,
-    height = 2,
-    default_enable_all_autoplace_controls = false
-  })
-  surface.set_tiles {{
-    name = "lab-dark-1", position = {0, 0}
-  },{
-    name = "lab-dark-1", position = {0, -1}
-  },{
-    name = "lab-dark-1", position = {-1, 0}
-  },{
-    name = "lab-dark-1", position = {-1, -1}
-  }}
-  surface.daytime = 0.5
-  surface.freeze_daytime = true
-  -- To make void chunks show up on the map, you need to tell them they've finished generating.
-  for cx = -1, 0 do
-    for cy = -1, 0 do
-      surface.set_chunk_generated_status({cx,cy}, defines.chunk_generated_status.entities)
-    end
-  end
-
   -- Disable all past migrations
   for _, ver in pairs(MOD.migrations) do
     global.changed[ver] = true
@@ -559,9 +527,7 @@ script.on_load(on_load)
 
 script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
   if event.setting:match("^charge_transmission") then
-    -- update_constants()
-    constants.have_beams = settings.global["charge_transmission-have-beams"].value
-    constants.robots_limit = settings.global["charge_transmission-robots-limit"].value
+    update_constants()
   end
 end)
 

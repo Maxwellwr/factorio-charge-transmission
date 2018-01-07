@@ -1,4 +1,21 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.6.0
+Date: 07.01.2018
+  Added:
+    - Display that points towards the target roboport (doesn't replace the arrow-on-hover, just a quicker indicator at a glance)
+    - Charging beams! UPS demanding but cool (can be toggled off)
+
+  Changed:
+    - UPS optimizations with new charging algorithm (with settings to tweak UPS demand)
+    - Charger is now a beacon base, can use effectivity modules (configurable, on by default)
+    - New graphics for charger (place-holder)
+    - en localization word capitalization
+
+  Fixed:
+    - Blurred overtaxed icon
+    - Debug mode wasn't logged if triggered
+    - Charger base had the wrong render order for subcomponents
+---------------------------------------------------------------------------------------------------
 Version: 0.5.0
 Date: 18.12.2017
   Added:
