@@ -77,7 +77,7 @@ function quickstart.on_player_created(event)
 
         if QS.get("destroy_everything", false) then
             for _, entity in pairs(surface.find_entities(area)) do
-                if entity.name ~= "player" then
+                if entity.valid and entity.name ~= "player" then
                     entity.destroy()
                 end
             end
