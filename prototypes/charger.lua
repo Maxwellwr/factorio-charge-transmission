@@ -31,7 +31,7 @@ local entity_interface = {
     drain = "612kW",
   },
   energy_production = "0W",
-  energy_usage = "0W",
+  energy_usage = "0.000001kW",
 
   enable_gui = false,
   allow_copy_paste = false,
@@ -101,7 +101,7 @@ local entity_base = {
     -- buffer_capacity = "2MJ",
     render_no_power_icon = false
   },
-  energy_usage = "0kW",
+  energy_usage = "0.000001kW",
 
   allowed_effects = {"consumption"},
   supply_area_distance = 0,
